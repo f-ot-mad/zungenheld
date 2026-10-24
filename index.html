@@ -61,7 +61,9 @@ button.ghost{background:transparent}
 .song .notes{font-family:var(--display);font-size:.78rem;letter-spacing:.12em;color:var(--c);margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .song .meta{display:flex;gap:10px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .song .meta b{color:var(--fg)}
-.song-actions{display:flex;gap:8px;margin-top:6px}
+.lvl{padding:1px 8px;border-radius:999px;font-weight:700;color:#0b0820}
+.lvl.l1{background:var(--ok)}.lvl.l2{background:var(--accent)}.lvl.l3{background:var(--hot)}
+.song-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .song-actions button{padding:.4em .8em;font-size:.86rem}
 .card{padding:18px;display:flex;flex-direction:column;gap:12px}
 .step{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center}
@@ -129,6 +131,15 @@ select option{background:#16123a}
 .stats span{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
 textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:.95rem;resize:vertical;-webkit-user-select:text;user-select:text}
 .toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:10px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);z-index:20;font-weight:600}
+/* angedockt: Menü und Fenster liegen im freien Bereich neben der Trommel */
+#menu.docked{inset:auto;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#menu.docked .menu-wrap{grid-template-columns:minmax(0,1fr);max-width:none;gap:16px}
+#menu.docked .brand h1{font-size:2.1rem}
+#menu.docked .brand p{display:none}
+#menu.docked .songs{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+#menu.docked .song{min-height:0}
+.float.docked,#layoutBar.docked{overflow:auto;transform:none}
+.modal .panel.docked{position:fixed;overflow:auto}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -162,7 +173,7 @@ textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px
         </div>
         <div class="step" id="stepCal">
           <div class="n">2</div>
-          <div><h4>Töne einmessen</h4><small>Jede Zunge einmal anschlagen, dann kennt die App deine Trommel genau.</small></div>
+          <div><h4>Töne einmessen</h4><small>Jede Zunge einmal anschlagen, in beliebiger Reihenfolge. Dann kennt die App deine Trommel genau.</small></div>
           <button id="btnCal">Einmessen</button>
         </div>
         <div class="freqs" id="freqView"></div>
@@ -178,7 +189,8 @@ textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px
       </div>
 
       <div class="panel card">
-        <div class="slider"><label for="sTempo">Tempo</label><output id="oTempo"></output><input id="sTempo" type="range" min="50" max="130" step="5"></div>
+        <div class="slider"><label for="sTempo">Tempo</label><output id="oTempo"></output><input id="sTempo" type="range" min="30" max="130" step="5"></div>
+        <div class="slider"><label for="sGap">Mindestabstand zwischen Tönen (ein Schläger)</label><output id="oGap"></output><input id="sGap" type="range" min="0.3" max="2" step="0.1"></div>
         <div class="slider"><label for="sApproach">Vorlaufzeit der Töne</label><output id="oApproach"></output><input id="sApproach" type="range" min="1.2" max="4" step="0.1"></div>
         <div class="slider"><label for="sSens">Mikrofon-Empfindlichkeit</label><output id="oSens"></output><input id="sSens" type="range" min="1" max="10" step="1"></div>
         <div class="slider"><label for="sLat">Latenz-Ausgleich</label><output id="oLat"></output><input id="sLat" type="range" min="0" max="250" step="5"></div>
@@ -218,13 +230,13 @@ textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px
 <!-- ============ KALIBRIERUNG ============ -->
 <div id="calib" class="panel float" hidden>
   <h2>Töne einmessen</h2>
-  <p class="hint" id="calText">Schlag die Zunge kräftig an und lass sie ausklingen.</p>
-  <div class="bigk" id="calKey">1</div>
+  <p class="hint" id="calText">Schlag jede Zunge einmal an, egal in welcher Reihenfolge.</p>
+  <div class="bigk" id="calKey">0 / 6</div>
   <div class="freqs" id="calFreqs"></div>
   <p class="hint" id="calMsg">Warte auf den Ton …</p>
   <div class="meter"><i id="calLevel"></i></div>
   <div class="row" style="justify-content:space-between">
-    <button id="calBack" class="ghost">Zurück</button>
+    <button id="calBack" class="ghost">Letzten löschen</button>
     <button id="calCancel" class="ghost">Abbrechen</button>
     <button id="calSave" class="primary" hidden>Speichern</button>
   </div>
@@ -233,7 +245,8 @@ textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px
 <!-- ============ AUFBAU ============ -->
 <div id="layoutBar" class="panel float" hidden>
   <div class="row" style="justify-content:space-between"><h2>Aufbau</h2><div class="row" style="gap:8px"><button class="ghost fsBtn">Vollbild</button><button id="layFold" class="ghost">Einklappen</button></div></div>
-  <p class="hint">1. Zieh den Kreis an die gewünschte Stelle und pass die Größe an. 2. Leg die Trommel genau auf den Umriss. 3. Tipp einen farbigen Marker an und wähle, welche Zunge an dieser Stelle liegt. Zum Feinjustieren kannst du Marker auch ziehen.</p>
+  <p class="hint">1. Zieh den Kreis an die gewünschte Stelle und pass die Größe an. 2. Leg die Trommel genau auf den Umriss. 3. Tipp auf „Per Anschlag zuordnen“ und schlag nacheinander die Zunge am blinkenden Marker an. Oder tipp einen Marker an und wähl die Zunge aus. Zum Feinjustieren kannst du Marker ziehen.</p>
+  <div class="row"><button id="layListen" class="primary">Per Anschlag zuordnen</button><span class="hint" id="layMsg" style="flex:1;min-width:180px"></span></div>
   <p class="hint">Tipp: Erst Vollbild einschalten, dann ausrichten. Sonst verschiebt sich der Umriss beim Wechsel.</p>
   <div class="grid">
     <div class="slider"><label for="sSize">Trommelgröße</label><output id="oSize"></output><input id="sSize" type="range" min="60" max="600" step="2"></div>
@@ -296,6 +309,7 @@ textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px
 
 <div id="pick" class="panel" hidden role="dialog" aria-label="Zunge zuordnen">
   <div class="label">Welche Zunge liegt hier?</div>
+  <p class="hint" style="margin:0">Tippen oder die Zunge einfach anschlagen.</p>
   <div class="chips" id="pickChips"></div>
 </div>
 
@@ -319,19 +333,28 @@ const WIN = { perfect: 0.075, good: 0.14, ok: 0.22 };
 const POINTS = { perfect: 100, good: 70, ok: 40 };
 const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
 
+const LEVELS = ["", "Leicht", "Mittel", "Schwer"];
 const SONGS = [
-  { id: "scale",   title: "Tonleiter-Treppe", sub: "Aufwärmen · rauf, runter, Sprünge", bpm: 76,
+  { id: "first",   level: 1, title: "Erste Schläge", sub: "Nur 1, 3, 5 und i · viel Zeit", bpm: 70,
+    src: "1- 1- 3- 3- | 5- 5- 3-- 0 | 1- 3- 5- i- | 5- 3- 1---" },
+  { id: "ladder",  level: 1, title: "Langsame Tonleiter", sub: "Einmal rauf, einmal runter", bpm: 72,
+    src: "1- 2- 3- 5- | 6- i--- | i- 6- 5- 3- | 2- 1---" },
+  { id: "bells",   level: 1, title: "Glockenturm", sub: "Große Sprünge, ruhiges Tempo", bpm: 66,
+    src: "i- 5- i- 5- | 3- 5- 1-- 0 | 1- 3- 5- i- | 5- 3- 1---" },
+  { id: "evening", level: 1, title: "Abendruhe", sub: "Ruhige Melodie für die Trommel", bpm: 72,
+    src: "3- 5- 6- 5- | 3- 2- 1-- 0 | 2- 3- 5- 3- | 2- 1- 2-- 0 | 3- 5- 6- i- | 6- 5- 3-- 0 | 2- 3- 2- 1- | 1---" },
+  { id: "buns",    level: 1, title: "Hot Cross Buns", sub: "Kinderlied", bpm: 72,
+    src: "3 2 1- | 3 2 1- | 1 1 2 2 | 3 2 1---" },
+  { id: "mary",    level: 2, title: "Mary Had a Little Lamb", sub: "Kinderlied", bpm: 80,
+    src: "3 2 1 2 | 3 3 3- | 2 2 2- | 3 5 5- | 3 2 1 2 | 3 3 3 3 | 2 2 3 2 | 1---" },
+  { id: "scale",   level: 2, title: "Tonleiter-Treppe", sub: "Rauf, runter, Sprünge", bpm: 70,
     src: "1 2 3 5 6 i- 0 i 6 5 3 2 1- 0 1 3 2 5 3 6 5 i- 0 i 5 6 3 5 2 3 1---" },
-  { id: "buns",    title: "Hot Cross Buns", sub: "Kinderlied · ganz leicht", bpm: 88,
-    src: "3 2 1- 3 2 1- 1_ 1_ 1_ 1_ 2_ 2_ 2_ 2_ 3 2 1---" },
-  { id: "mary",    title: "Mary Had a Little Lamb", sub: "Kinderlied · leicht", bpm: 100,
-    src: "3. 2_ 1 2 | 3 3 3- | 2 2 2- | 3 5 5- | 3. 2_ 1 2 | 3 3 3 3 | 2 2 3 2 | 1---" },
-  { id: "susanna", title: "Oh! Susanna", sub: "Stephen Foster · Strophe", bpm: 104,
-    src: "1_ 2_ | 3 5 5. 6_ | 5 3 1. 2_ | 3 3 2 1 | 2-- 1_ 2_ | 3 5 5. 6_ | 5 3 1. 2_ | 3 3 2 2 | 1---" },
-  { id: "jasmine", title: "Jasminblüte", sub: "Mo Li Hua · chinesisches Volkslied", bpm: 66,
+  { id: "susanna", level: 2, title: "Oh! Susanna", sub: "Stephen Foster · Strophe", bpm: 84,
+    src: "1 2 | 3 5 5 6 | 5 3 1 2 | 3 3 2 1 | 2-- 0 | 1 2 | 3 5 5 6 | 5 3 1 2 | 3 3 2 2 | 1---" },
+  { id: "jasmine", level: 3, title: "Jasminblüte", sub: "Mo Li Hua · chinesisches Volkslied", bpm: 66,
     src: "3 3_ 5_ 6_ i_ i_ 6_ | 5 5_ 6_ 5- | 3 3_ 5_ 6_ i_ i_ 6_ | 5 5_ 6_ 5- | 5 5 5 3_ 5_ | 6 6 5- | 3 2_ 3_ 5 3_ 2_ | 1 1_ 2_ 1-" },
-  { id: "random",  title: "Endlos-Zufall", sub: "Jedes Mal eine neue Melodie", bpm: 92, src: null },
-  { id: "custom",  title: "Eigenes Lied", sub: "Noten selbst eintippen", bpm: 90, src: null },
+  { id: "random",  level: 2, title: "Endlos-Zufall", sub: "Jedes Mal eine neue Melodie", bpm: 70, src: null },
+  { id: "custom",  level: 0, title: "Eigenes Lied", sub: "Noten selbst eintippen", bpm: 90, src: null },
 ];
 
 /* ================================================================
@@ -344,8 +367,8 @@ const store = {
 const DEFAULT_ANGLES = [90, 30, 150, -30, 210, 270];
 const cfg = Object.assign({
   root: 72, freqs: null, calibrated: false,
-  angles: DEFAULT_ANGLES.slice(), cx: 0.5, cy: 0.5, r: null,
-  view: "ring", latency: 70, approach: 2.4, tempo: 100, sens: 5, guide: false,
+  angles: DEFAULT_ANGLES.slice(), cx: 0.62, cy: 0.5, r: null,
+  view: "ring", latency: 70, approach: 2.4, tempo: 100, sens: 5, guide: false, minGap: 0.9,
   customText: "3 5 6 5 3 2 1- | 2 3 5 3 2- 0 | 3 5 6 i 6 5 3 | 2 3 2 1---", customBpm: 90,
 }, store.get("cfg", {}));
 if (!cfg.freqs) cfg.freqs = TONGUES.map(t => midiToFreq(cfg.root + t.semi));
@@ -397,6 +420,17 @@ function targetPos(k) {
   }
   const { cx, cy, tr } = geom(), a = rad(cfg.angles[k]);
   return { x: cx + Math.cos(a) * tr, y: cy + Math.sin(a) * tr };
+}
+/* freies Rechteck neben der Trommel (Ringmarker bleiben frei), oder null wenn zu wenig Platz */
+function freeRect() {
+  const { cx, cy, r } = geom(), R = r + 58, m = 12;
+  const c = [
+    { x: m, y: m, w: cx - R - 2 * m, h: H - 2 * m },
+    { x: cx + R + m, y: m, w: W - cx - R - 2 * m, h: H - 2 * m },
+    { x: m, y: m, w: W - 2 * m, h: cy - R - 2 * m },
+    { x: m, y: cy + R + m, w: W - 2 * m, h: H - cy - R - 2 * m },
+  ].filter(q => q.w >= 280 && q.h >= 220).sort((a, b) => b.w * b.h - a.w * a.h);
+  return c[0] || null;
 }
 /* größte freie Fläche neben der Trommel, für Countdown und große Meldungen */
 function freeZone() {
@@ -478,7 +512,7 @@ function detectPitch(buf, sr) {
 }
 
 function audioFrame(now) {
-  if (!A.on) return;
+  if (!A.on || !A.analyser) return;
   A.analyser.getFloatTimeDomainData(A.buf);
   const b = A.buf, n = 512;
   let s = 0;
@@ -527,18 +561,47 @@ function noteName(freq) {
   return { name: NOTE_NAMES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1), cents: (m - r) * 100 };
 }
 
-/* Klang einer Zungentrommel für Vorschau und Mitspielen */
-function pling(f, when, vel = 0.5) {
-  const ctx = ensureCtx(), t = when ?? ctx.currentTime;
-  [[1, 1, 2.2], [2, 0.18, 0.7], [3, 0.06, 0.3]].forEach(([mul, amp, dec]) => {
+/* Klang einer Zungentrommel: weicher Schlägel-Anschlag, lang ausklingender Grundton mit
+   leichter Schwebung, Oktav-Oberton und etwas Raumhall. Gestimmt auf die eingemessenen Töne. */
+function drumOut() {
+  const ctx = ensureCtx();
+  if (!A.out) {
+    const out = ctx.createGain(), comp = ctx.createDynamicsCompressor();
+    const verb = ctx.createConvolver(), wet = ctx.createGain();
+    const len = Math.floor(ctx.sampleRate * 2.8), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5);
+    }
+    verb.buffer = ir; wet.gain.value = 0.22;
+    out.connect(comp); out.connect(verb).connect(wet).connect(comp); comp.connect(ctx.destination);
+    A.out = out;
+  }
+  return A.out;
+}
+function pling(f, when, vel = 0.5, dest) {
+  const ctx = ensureCtx(), t = when ?? ctx.currentTime, out = dest || drumOut();
+  // [Frequenzfaktor, Lautstärke, Abklingzeit s, Verstimmung in Cent]
+  [[1, 1, 3.4, 0], [1, 0.3, 3.0, 4], [2, 0.2, 1.3, -2], [3, 0.05, 0.45, 0], [5.4, 0.02, 0.12, 0]].forEach(([mul, amp, dec, det]) => {
     const o = ctx.createOscillator(), gn = ctx.createGain();
-    o.type = "sine"; o.frequency.value = f * mul;
+    o.type = "sine"; o.frequency.value = f * mul; o.detune.value = det;
     gn.gain.setValueAtTime(0, t);
-    gn.gain.linearRampToValueAtTime(vel * amp, t + 0.006);
+    gn.gain.linearRampToValueAtTime(vel * amp, t + 0.004);
+    gn.gain.exponentialRampToValueAtTime(vel * amp * 0.5, t + 0.08);
     gn.gain.exponentialRampToValueAtTime(0.0001, t + dec);
-    o.connect(gn).connect(ctx.destination);
+    o.connect(gn).connect(out);
     o.start(t); o.stop(t + dec + 0.05);
   });
+  // gedämpfter Schlägel-Kontakt
+  if (!A.thump) {
+    const n = Math.floor(ctx.sampleRate * 0.03);
+    A.thump = ctx.createBuffer(1, n, ctx.sampleRate);
+    const d = A.thump.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+  }
+  const src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), tg = ctx.createGain();
+  src.buffer = A.thump; lp.type = "lowpass"; lp.frequency.value = 1200; tg.gain.value = vel * 0.35;
+  src.connect(lp).connect(tg).connect(out); src.start(t);
 }
 
 /* ================================================================
@@ -562,14 +625,12 @@ function parseSong(src) {
 }
 function randomSong() {
   const ev = []; let k = 0;
-  const rhythms = [1, 1, 1, 1, 0.5, 0.5, 2];
-  for (let i = 0; i < 44; i++) {
-    const step = [-2, -1, -1, 1, 1, 2, 0][Math.floor(Math.random() * 7)];
+  const rhythms = [1, 1, 2, 2];
+  for (let i = 0; i < 32; i++) {
+    const step = [-1, -1, 1, 1, 2, -2, 0][Math.floor(Math.random() * 7)];
     k = Math.max(0, Math.min(5, k + step));
-    let beats = rhythms[Math.floor(Math.random() * rhythms.length)];
-    if (beats === 0.5) { ev.push({ k, beats }); k = Math.max(0, Math.min(5, k + (Math.random() < .5 ? 1 : -1))); }
-    ev.push({ k, beats });
-    if (i % 8 === 7) ev.push({ k: 0, beats: 2 }), k = 0;
+    ev.push({ k, beats: rhythms[Math.floor(Math.random() * rhythms.length)] });
+    if (i % 8 === 7) ev.push({ k: 0, beats: 3 }), k = 0;
   }
   return ev;
 }
@@ -587,7 +648,7 @@ const S = {
 };
 const now = () => performance.now() / 1000;
 
-function startSong(song, preview = false) {
+function startSong(song, preview = false, duet = false) {
   ensureCtx();
   let events, bpm = song.bpm;
   if (song.id === "random") events = randomSong();
@@ -595,33 +656,74 @@ function startSong(song, preview = false) {
   else events = parseSong(song.src);
   if (!events.some(e => e.k >= 0)) { toast("Das Lied enthält keine Noten."); return; }
 
-  bpm = bpm * cfg.tempo / 100;
-  const beat = 60 / bpm;
+  const beat = songBeat(events, bpm);
   const lead = Math.max(cfg.approach, 4 * beat) + 0.6;
   const notes = []; let t = lead;
-  for (const e of events) { if (e.k >= 0) notes.push({ t, k: e.k, state: "pending" }); t += e.beats * beat; }
+  events.forEach((e, i) => {
+    if (e.k >= 0) notes.push({ t, k: e.k, state: "pending", owner: "me",
+      phraseEnd: e.beats >= 2 || !events[i + 1] || events[i + 1].k < 0 });
+    t += e.beats * beat;
+  });
+  // Zusammenspiel: Phrasen enden an langen Tönen oder Pausen; die App beginnt, dann abwechselnd
+  if (duet) {
+    let phrase = 0, len = 0;
+    notes.forEach((n, i) => {
+      n.phrase = phrase; n.owner = phrase % 2 === 0 ? "app" : "me";
+      len += ((notes[i + 1]?.t ?? Infinity) - n.t) / beat;
+      if (len >= 3.99) n.phraseEnd = true;   // spätestens nach einem Takt wechseln
+      if (n.phraseEnd) { phrase++; len = 0; }
+    });
+    if (!notes.some(n => n.owner === "me")) notes[notes.length - 1].owner = "me";
+  }
 
   Object.assign(S, { mode: "play", song, notes, beat, lead, end: notes[notes.length - 1].t + 1.6,
-    preview, paused: false, score: 0, combo: 0, maxCombo: 0, offsets: [],
+    preview, duet, muteUntil: 0, paused: false, score: 0, combo: 0, maxCombo: 0, offsets: [],
     counts: { perfect: 0, good: 0, ok: 0, wrong: 0, miss: 0 }, particles: [], texts: [] });
   S.t0 = now();
-  if (preview || cfg.guide) scheduleGuide();
+  stopGuide();
   show("hud");
-  el.hTitle.textContent = song.title + (preview ? " · Vorschau" : "");
+  el.hTitle.textContent = song.title + (preview ? " · Vorschau" : duet ? " · Zusammen" : "");
   el.btnPause.textContent = "Pause";
   requestWake();
 }
-function scheduleGuide() {
-  const ctx = ensureCtx(), offs = ctx.currentTime - (now() - S.t0);
-  S.guideNodesAt = ctx.currentTime;
-  for (const n of S.notes) pling(cfg.freqs[n.k], offs + n.t, S.preview ? 0.5 : 0.22);
+/* Dauer eines Schlags in Sekunden. Mit nur einem Schläger braucht es zwischen zwei Tönen
+   mindestens cfg.minGap Sekunden; ist das Lied dafür zu schnell, wird es gleichmäßig langsamer. */
+function songBeat(events, bpm) {
+  let minBeats = Infinity, gap = null;
+  for (const e of events) {
+    if (e.k >= 0) { if (gap !== null) minBeats = Math.min(minBeats, gap); gap = 0; }
+    if (gap !== null) gap += e.beats;
+  }
+  const beat = 60 / (bpm * cfg.tempo / 100);
+  return isFinite(minBeats) ? Math.max(beat, cfg.minGap / minBeats) : beat;
+}
+/* Begleitmelodie: immer nur kurz im Voraus planen, damit Pause und Menü sie sofort stoppen */
+function guideBus() {
+  if (!S.bus) { S.bus = ensureCtx().createGain(); S.bus.connect(drumOut()); }
+  return S.bus;
+}
+function stopGuide() {
+  if (S.bus) { try { S.bus.disconnect(); } catch {} S.bus = null; }
+}
+function scheduleGuide(st) {
+  const ctx = A.ctx;
+  for (const n of S.notes) {
+    if (n.sched || n.t - st > 0.25 || n.t < st - 0.05) continue;
+    n.sched = true;
+    const app = S.preview || n.owner === "app";
+    if (!app && (S.duet || !cfg.guide)) continue;   // im Zusammenspiel spielst du deine Töne selbst
+    pling(cfg.freqs[n.k], ctx.currentTime + Math.max(0, n.t - st), app ? 0.55 : 0.2, guideBus());
+  }
 }
 function songTime() { return (S.paused ? S.pausedAt : now()) - S.t0; }
 
 function togglePause() {
   if (S.mode !== "play") return;
-  if (!S.paused) { S.paused = true; S.pausedAt = now(); el.btnPause.textContent = "Weiter"; if (A.ctx) A.ctx.suspend(); }
-  else { S.t0 += now() - S.pausedAt; S.paused = false; el.btnPause.textContent = "Pause"; if (A.ctx) A.ctx.resume(); }
+  if (!S.paused) {
+    S.paused = true; S.pausedAt = now(); el.btnPause.textContent = "Weiter";
+    stopGuide();
+    for (const n of S.notes) if (n.t > songTime()) n.sched = false;
+  } else { S.t0 += now() - S.pausedAt; S.paused = false; el.btnPause.textContent = "Pause"; }
 }
 
 function judge(note, kind, offset) {
@@ -643,6 +745,26 @@ function judge(note, kind, offset) {
   } else {
     S.combo = 0;
   }
+  if (S.duet && note.phraseEnd) phraseReward(note.phrase);
+}
+/* Belohnung, wenn eine eigene Phrase im Zusammenspiel komplett sitzt */
+function phraseReward(phrase) {
+  const mine = S.notes.filter(n => n.phrase === phrase && n.owner === "me");
+  if (mine.some(n => n.state === "pending")) return;
+  const z = freeZone();
+  if (mine.every(n => n.state === "hit")) {
+    const perfect = mine.every(n => n.judge === "perfect");
+    const bonus = mine.length * (perfect ? 120 : 60);
+    S.score += bonus; S.counts.phrases = (S.counts.phrases || 0) + 1;
+    floatText(z.x, z.y, perfect ? "TRAUMHAFT!" : "SCHÖN ZUSAMMEN!", perfect ? "#3dffa8" : "#3dd8ff", `+${bonus} Bonus`, 1.4);
+    for (let i = 0; i < 6; i++) { const p = targetPos(i); burst(p.x, p.y, TONGUES[i].color, perfect ? 14 : 8); }
+    // leiser Akkord als Applaus; das Mikrofon soll ihn nicht als Anschlag werten
+    const ctx = ensureCtx();
+    [0, 3, 5].forEach((k, i) => pling(cfg.freqs[k] * 2, ctx.currentTime + 0.05 + i * 0.07, 0.12));
+    S.muteUntil = now() + 0.6;
+  } else {
+    floatText(z.x, z.y, "WEITER SO", "#9d97c9", "die nächste Phrase klappt", 1);
+  }
 }
 
 /* Ein erkannter Anschlag: aus Mikrofon, Tastatur oder Klick */
@@ -650,13 +772,16 @@ function strike(freq, t, simulated) {
   const c = classify(freq), nn = noteName(freq);
   showEar(nn, freq, c);
   if (S.mode === "calib") return calibStrike(freq);
+  if (S.mode === "layout") return layoutStrike(c);
   if (!c) { if (S.mode === "play" && !S.preview) noise(); return; }
   S.flash[c.k] = Math.max(S.flash[c.k], 0.7);
   ripple(c.k);
   if (S.mode !== "play" || S.preview || S.paused) return;
 
   const st = t - S.t0;
-  const near = S.notes.filter(n => n.state === "pending" && Math.abs(n.t - st) <= WIN.ok);
+  // im Zusammenspiel hört das Mikrofon auch die App; deren eigene Töne nicht werten
+  if (S.duet && (now() < S.muteUntil || S.notes.some(n => n.owner === "app" && n.k === c.k && st - n.t > -0.08 && st - n.t < 0.45))) return;
+  const near = S.notes.filter(n => n.state === "pending" && n.owner === "me" && Math.abs(n.t - st) <= WIN.ok);
   const same = near.filter(n => n.k === c.k).sort((a, b) => Math.abs(a.t - st) - Math.abs(b.t - st))[0];
   if (same) {
     const off = st - same.t, ad = Math.abs(off);
@@ -678,9 +803,10 @@ function noise() { /* unbekannter Klang: bewusst keine Strafe */ }
 function updatePlay() {
   if (S.paused) return;
   const st = songTime();
+  if ((S.preview || cfg.guide || S.duet) && A.ctx) scheduleGuide(st);
   for (const n of S.notes) {
     if (n.state !== "pending") continue;
-    if (S.preview && st >= n.t) {
+    if ((S.preview || n.owner === "app") && st >= n.t) {
       n.state = "hit"; S.flash[n.k] = 1;
       const p = targetPos(n.k); burst(p.x, p.y, TONGUES[n.k].color, 14);
     } else if (st - n.t > WIN.ok) {
@@ -694,16 +820,21 @@ function updatePlay() {
 
 function finishSong() {
   S.mode = "result";
+  stopGuide();
   releaseWake();
   if (S.preview) { show("menu"); return; }
-  const c = S.counts, total = S.notes.length;
+  const c = S.counts, total = S.notes.filter(n => n.owner === "me").length;
   const acc = (c.perfect + c.good * 0.7 + c.ok * 0.4) / total;
   const grade = acc >= 0.95 ? "S" : acc >= 0.85 ? "A" : acc >= 0.7 ? "B" : acc >= 0.5 ? "C" : "D";
-  const key = S.song.id;
-  if (key !== "random" && key !== "custom" && (!best[key] || S.score > best[key].score)) {
+  const key = S.song.id + (S.duet ? "~duo" : "");
+  if (acc >= 0.8) {   // kleines Schlussmotiv als Belohnung
+    const ctx = ensureCtx();
+    [0, 2, 3, 5].forEach((k, i) => pling(cfg.freqs[k], ctx.currentTime + 0.3 + i * 0.16, 0.4));
+  }
+  if (!key.startsWith("random") && !key.startsWith("custom") && (!best[key] || S.score > best[key].score)) {
     best[key] = { score: S.score, grade }; store.set("best", best);
   }
-  el.rTitle.textContent = S.song.title;
+  el.rTitle.textContent = S.song.title + (S.duet ? ` · Zusammen · ${c.phrases || 0} Phrasen voll getroffen` : "");
   el.rGrade.textContent = grade;
   el.rGrade.style.color = { S: "#3dffa8", A: "#3dd8ff", B: "#ffe23d", C: "#ff8a1f", D: "#ff5d5d" }[grade];
   el.rScore.textContent = S.score.toLocaleString("de-DE");
@@ -854,6 +985,15 @@ function drawNotes() {
     const { x, y, p } = notePos(n, st);
     const tg = TONGUES[n.k];
     const dead = n.state === "miss" || n.state === "wrong";
+    if (n.owner === "app" && !S.preview) {
+      g.globalAlpha = (dt < 0 ? Math.max(0, 1 + dt * 3) : Math.min(1, (1 - p) * 4)) * 0.55;
+      g.strokeStyle = tg.color; g.lineWidth = 2;
+      g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = tg.color; g.font = "12px Bungee, Impact, sans-serif";
+      g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(tg.id, x, y + 1);
+      g.globalAlpha = 1;
+      continue;
+    }
     const alpha = dt < 0 ? Math.max(0, 1 + dt * 3) : Math.min(1, (1 - p) * 4);
     const size = 13 + 6 * (1 - Math.max(0, p));
     if (dead) {
@@ -908,6 +1048,18 @@ function drawFx(dt) {
   for (let k = 0; k < 6; k++) S.flash[k] = Math.max(0, S.flash[k] - dt * 2.5);
 }
 
+/* Zusammenspiel: zeigt, wer gerade dran ist */
+function drawTurn() {
+  if (!S.duet) return;
+  const st = songTime(), next = S.notes.find(n => n.t > st - 0.15);
+  if (!next || next.t - st > 4 * S.beat && S.notes[0].t > st) return;
+  const mine = next.owner === "me", z = freeZone();
+  g.font = `${mine ? 34 : 24}px Bungee, Impact, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = mine ? "#ffe23d" : "#9d97c9";
+  if (mine) { g.shadowColor = "#ffe23d"; g.shadowBlur = 18; }
+  g.fillText(mine ? "DU BIST DRAN" : "HÖR ZU …", z.x, z.y + 80);
+  g.shadowBlur = 0;
+}
 function drawCountdown() {
   const st = songTime(), first = S.notes[0].t, beatsLeft = (first - st) / S.beat;
   if (beatsLeft > 4 || beatsLeft < 0) return;
@@ -927,7 +1079,12 @@ function drawPaused() {
 }
 
 function drawLayoutHandles() {
-  const { cx, cy, r } = geom();
+  const { cx, cy, r, tr } = geom();
+  if (ASSIGN.on) {
+    const a = rad(ASSIGN.slots[ASSIGN.i]), pulse = 0.5 + 0.5 * Math.sin(now() * 7);
+    g.strokeStyle = `rgba(255,255,255,${0.5 + pulse * 0.5})`; g.lineWidth = 4;
+    g.beginPath(); g.arc(cx + Math.cos(a) * tr, cy + Math.sin(a) * tr, 28 + pulse * 6, 0, Math.PI * 2); g.stroke();
+  }
   g.setLineDash([10, 8]); g.lineWidth = 3; g.strokeStyle = "#ffe23d";
   g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
   const hx = cx + Math.cos(rad(-45)) * r, hy = cy + Math.sin(rad(-45)) * r;
@@ -937,8 +1094,28 @@ function drawLayoutHandles() {
   g.beginPath(); g.moveTo(cx - 14, cy); g.lineTo(cx + 14, cy); g.moveTo(cx, cy - 14); g.lineTo(cx, cy + 14); g.stroke();
 }
 
+let dockKey = "";
+function dockPanels() {
+  if (drag) return;   // nicht springen, während die Trommel verschoben wird
+  const r = freeRect(), key = r ? [r.x, r.y, r.w, r.h].map(Math.round).join() : "none";
+  if (key === dockKey) return;
+  dockKey = key;
+  dock(el.menu, r, Infinity, true);
+  for (const p of [el.calib, el.freeBar, el.layoutBar]) dock(p, r, 420);
+  for (const p of [el.result.firstElementChild, el.custom.firstElementChild]) dock(p, r, 520);
+}
+function dock(node, r, maxW, fill) {
+  const st = node.style;
+  if (!r) { node.classList.remove("docked"); st.left = st.top = st.width = st.height = st.maxHeight = ""; return; }
+  const w = Math.min(maxW, r.w);
+  node.classList.add("docked");
+  st.left = r.x + (r.w - w) / 2 + "px"; st.top = r.y + "px"; st.width = w + "px";
+  if (fill) st.height = r.h + "px"; else st.maxHeight = r.h + "px";
+}
+
 let lastT = now();
 function frame() {
+  dockPanels();
   const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
   audioFrame(t);
   drawBackground(t);
@@ -948,7 +1125,7 @@ function frame() {
     if (cfg.view === "lane" && S.mode !== "layout") drawLanes(t); else drawRing(t);
     drawDrum();
   }
-  if (S.mode === "play") { drawNotes(); drawCountdown(); }
+  if (S.mode === "play") { drawNotes(); drawCountdown(); drawTurn(); }
   if (S.mode === "layout") drawLayoutHandles();
   drawFx(dt);
   if (S.mode === "play" && S.paused) drawPaused();
@@ -963,6 +1140,7 @@ const el = {};
 document.querySelectorAll("[id]").forEach(n => el[n.id] = n);
 
 function show(which) {
+  if (which !== "hud") stopGuide();
   el.menu.hidden = which !== "menu";
   el.hud.hidden = which !== "hud";
   el.calib.hidden = which !== "calib";
@@ -1003,6 +1181,11 @@ function updateHud() {
   el.hAcc.textContent = S.preview ? "Vorschau" : judged ? Math.round(100 * (c.perfect + c.good + c.ok) / judged) + "%" : "–";
 }
 
+function effBpm(s) {
+  const ev = s.id === "custom" ? parseSong(cfg.customText) : s.src ? parseSong(s.src) : [{ k: 0, beats: 1 }, { k: 0, beats: 1 }];
+  const bpm = s.id === "custom" ? cfg.customBpm : s.bpm;
+  return Math.round(60 / songBeat(ev, bpm));
+}
 function renderMenu() {
   el.brandKeys.innerHTML = TONGUES.map(t => `<span style="background:${t.color}">${t.id}</span>`).join("");
   el.songList.innerHTML = "";
@@ -1014,14 +1197,15 @@ function renderMenu() {
     const div = document.createElement("div");
     div.className = "song panel"; div.style.setProperty("--c", col);
     div.innerHTML = `<h3></h3><div class="sub"></div>
-      <div class="meta"><span><b>${s.id === "custom" ? cfg.customBpm : s.bpm}</b> BPM</span>${b ? `<span>Rekord <b>${b.score.toLocaleString("de-DE")}</b> · ${b.grade}</span>` : ""}</div>
+      <div class="meta">${s.level ? `<span class="lvl l${s.level}">${LEVELS[s.level]}</span>` : ""}<span><b>${effBpm(s)}</b> BPM</span>${b ? `<span>Rekord <b>${b.score.toLocaleString("de-DE")}</b> · ${b.grade}</span>` : ""}${best[s.id + "~duo"] ? `<span>Zusammen <b>${best[s.id + "~duo"].grade}</b></span>` : ""}</div>
       <div class="notes"></div>
-      <div class="song-actions"><button class="primary" data-a="play">Spielen</button>${s.id === "custom" ? `<button data-a="edit">Bearbeiten</button>` : s.id !== "random" ? `<button data-a="listen">Anhören</button>` : ""}</div>`;
+      <div class="song-actions"><button class="primary" data-a="play">Spielen</button><button data-a="duet" title="Die App spielt, du antwortest">Zusammen</button>${s.id === "custom" ? `<button data-a="edit">Bearbeiten</button>` : s.id !== "random" ? `<button data-a="listen">Anhören</button>` : ""}</div>`;
     div.querySelector("h3").textContent = s.title;
     div.querySelector(".sub").textContent = s.sub;
     div.querySelector(".notes").textContent = preview;
     div.querySelector('[data-a="play"]').onclick = () => s.id === "custom" && !cfg.customText.trim() ? openCustom() : startSong(s);
     const l = div.querySelector('[data-a="listen"]'); if (l) l.onclick = () => startSong(s, true);
+    div.querySelector('[data-a="duet"]').onclick = () => startSong(s, false, true);
     const ed = div.querySelector('[data-a="edit"]'); if (ed) ed.onclick = openCustom;
     el.songList.appendChild(div);
   }
@@ -1039,7 +1223,8 @@ function bindSlider(input, out, key, fmt, onChange) {
   input.addEventListener("input", upd);
   out.textContent = fmt(cfg[key]);
 }
-bindSlider(el.sTempo, el.oTempo, "tempo", v => v + " %");
+bindSlider(el.sTempo, el.oTempo, "tempo", v => v + " %", renderMenu);
+bindSlider(el.sGap, el.oGap, "minGap", v => v.toFixed(1) + " s", renderMenu);
 bindSlider(el.sApproach, el.oApproach, "approach", v => v.toFixed(1) + " s");
 bindSlider(el.sSens, el.oSens, "sens", v => v + " / 10");
 bindSlider(el.sLat, el.oLat, "latency", v => v + " ms");
@@ -1060,9 +1245,9 @@ el.cGuide.onchange = () => { cfg.guide = el.cGuide.checked; saveCfg(); };
 
 el.btnMic.onclick = async () => { if (await startMic()) renderMenu(); };
 el.btnPause.onclick = togglePause;
-el.btnQuit.onclick = () => { if (A.ctx && A.ctx.state === "suspended") A.ctx.resume(); releaseWake(); show("menu"); };
+el.btnQuit.onclick = () => { releaseWake(); show("menu"); };
 el.rMenu.onclick = () => show("menu");
-el.rAgain.onclick = () => startSong(S.song);
+el.rAgain.onclick = () => startSong(S.song, false, S.duet);
 el.rLatFix.onclick = () => {
   cfg.latency = clampLat(cfg.latency + S.suggestLat); el.sLat.value = cfg.latency; el.oLat.textContent = cfg.latency + " ms";
   saveCfg(); el.rLatRow.hidden = true; toast(`Latenz-Ausgleich jetzt ${cfg.latency} ms`);
@@ -1083,41 +1268,58 @@ el.customPlay.onclick = () => {
 };
 
 /* ---------- Kalibrierung ---------- */
-const CAL = { step: 0, freqs: [], wait: false };
+const CAL = { tones: [] };   // in Anschlag-Reihenfolge; jede Zunge ein Eintrag {f, n}
+const calSorted = () => CAL.tones.map(t => t.f).sort((a, b) => a - b);
 el.btnCal.onclick = async () => {
   if (!(await startMic())) return;
-  Object.assign(CAL, { step: 0, freqs: [], wait: false });
+  CAL.tones = [];
   S.mode = "calib"; show("calib"); renderCalib();
+  el.calMsg.textContent = "Warte auf den ersten Ton …";
 };
 function renderCalib() {
-  const done = CAL.step >= 6;
-  el.calKey.textContent = done ? "✓" : TONGUES[CAL.step].id;
-  el.calKey.style.color = done ? "#3dffa8" : TONGUES[CAL.step].color;
-  el.calText.textContent = done ? "Alle sechs Zungen sind eingemessen." : `Schlag die Zunge ${TONGUES[CAL.step].id} an und lass sie ausklingen.`;
-  el.calFreqs.innerHTML = TONGUES.map((t, k) => `<div><b style="color:${t.color}">${t.id}</b>${CAL.freqs[k] ? Math.round(CAL.freqs[k]) + " Hz" : "–"}</div>`).join("");
+  const f = calSorted(), done = f.length >= 6;
+  el.calKey.textContent = done ? "✓" : `${f.length} / 6`;
+  el.calKey.style.color = done ? "#3dffa8" : "#ffe23d";
+  el.calText.textContent = done
+    ? "Alle sechs Töne sind erkannt. Der tiefste ist die 1, der höchste das i."
+    : "Schlag jede Zunge einmal an, egal in welcher Reihenfolge. Die App sortiert die Töne selbst nach Tonhöhe.";
+  el.calFreqs.innerHTML = TONGUES.map((t, k) => f[k]
+    ? `<div style="opacity:${done ? 1 : .6}"><b style="color:${t.color}">${t.id}</b>${noteName(f[k]).name}<br>${Math.round(f[k])} Hz</div>`
+    : `<div><b>–</b>&nbsp;<br>&nbsp;</div>`).join("");
   el.calSave.hidden = !done;
-  if (!done && !CAL.wait) el.calMsg.textContent = "Warte auf den Ton …";
-  S.flash.fill(0); if (!done) S.flash[CAL.step] = 1;
+  el.calBack.disabled = !CAL.tones.length;
 }
 function calibStrike(freq) {
-  if (CAL.wait || CAL.step >= 6) return;
   const nn = noteName(freq);
-  const prev = CAL.freqs[CAL.step - 1];
-  if (prev && freq < prev * 1.04) {
-    // tiefer als die vorige Zunge: vermutlich falsche Zunge oder Oktavfehler
-    if (freq * 2 > prev * 1.04 && freq * 2 < prev * 1.7) freq *= 2;
-    else { el.calMsg.textContent = `${nn.name} (${Math.round(freq)} Hz) ist nicht höher als Zunge ${TONGUES[CAL.step - 1].id}. Nochmal?`; return; }
+  const known = CAL.tones.find(t => Math.abs(1200 * Math.log2(freq / t.f)) < 60);
+  if (known) {
+    known.f = (known.f * known.n + freq) / (known.n + 1); known.n++;
+    el.calMsg.textContent = `${nn.name} hab ich schon. Schlag eine andere Zunge an.`;
+  } else if (CAL.tones.length >= 6) {
+    el.calMsg.textContent = `${nn.name} (${Math.round(freq)} Hz) wäre ein siebter Ton. Lösch mit „Letzten löschen“ den falschen Ton.`;
+  } else {
+    CAL.tones.push({ f: freq, n: 1 });
+    el.calMsg.textContent = `Neu erkannt: ${nn.name}, ${freq.toFixed(1)} Hz`;
+    const z = freeZone(); burst(z.x, z.y, "#ffe23d", 14);
   }
-  CAL.freqs[CAL.step] = freq;
-  el.calMsg.textContent = `Gehört: ${noteName(freq).name}, ${freq.toFixed(1)} Hz`;
-  burst(targetPos(CAL.step).x, targetPos(CAL.step).y, TONGUES[CAL.step].color, 18);
-  CAL.wait = true;
-  setTimeout(() => { CAL.wait = false; CAL.step++; renderCalib(); }, 700);
+  renderCalib();
+  const f = calSorted();
+  if (f.length === 6) {
+    // passen die Abstände zu 1 2 3 5 6 i?
+    const dev = Math.max(...f.map((x, k) => Math.abs(1200 * Math.log2(x / f[0]) - TONGUES[k].semi * 100)));
+    el.calMsg.textContent = dev > 80
+      ? "Fertig. Die Abstände passen nicht ganz zu 1 2 3 5 6 i. Vielleicht wurde ein Ton falsch gehört. Du kannst trotzdem speichern."
+      : "Fertig. Die Töne passen zu 1 2 3 5 6 i.";
+  }
 }
-el.calBack.onclick = () => { if (CAL.step > 0) { CAL.step--; CAL.freqs.length = CAL.step; CAL.wait = false; renderCalib(); } };
+el.calBack.onclick = () => {
+  const t = CAL.tones.pop();
+  if (t) el.calMsg.textContent = `${noteName(t.f).name} gelöscht.`;
+  renderCalib();
+};
 el.calCancel.onclick = () => show("menu");
 el.calSave.onclick = () => {
-  cfg.freqs = CAL.freqs.slice(); cfg.calibrated = true; saveCfg();
+  cfg.freqs = calSorted(); cfg.calibrated = true; saveCfg();
   el.rootSel.options[0].textContent = "eingemessen"; el.rootSel.value = "";
   toast("Deine Trommel ist eingemessen."); show("menu");
 };
@@ -1147,11 +1349,48 @@ function setView(v) {
 el.vRing.onclick = () => setView("ring");
 el.vLane.onclick = () => setView("lane");
 el.layReset.onclick = () => {
-  Object.assign(cfg, { angles: DEFAULT_ANGLES.slice(), cx: 0.5, cy: 0.5, r: Math.round(Math.min(W, H) * 0.3) });
+  Object.assign(cfg, { angles: DEFAULT_ANGLES.slice(), cx: 0.62, cy: 0.5, r: Math.round(Math.min(W, H) * 0.3) });
   rotBase = cfg.angles.slice(); el.sRot.value = 0; el.oRot.textContent = "0°";
   el.sSize.value = cfg.r; el.oSize.textContent = cfg.r + " px"; saveCfg();
 };
-el.layDone.onclick = () => { el.pick.hidden = true; el.layoutBar.classList.remove("folded"); el.layFold.textContent = "Einklappen"; show("menu"); };
+/* Geführt: Plätze ab unten im Uhrzeigersinn, an jedem Platz die dort liegende Zunge anschlagen */
+const ASSIGN = { on: false, slots: [], i: 0, done: [] };
+const norm = a => ((a % 360) + 360) % 360;
+function assignMsg(text) {
+  el.layMsg.textContent = text ?? (ASSIGN.on ? `Schlag die Zunge am weiß blinkenden Marker an (Platz ${ASSIGN.i + 1} von 6).` : "");
+}
+function stopAssign(text) {
+  ASSIGN.on = false; el.layListen.textContent = "Per Anschlag zuordnen"; assignMsg(text ?? "");
+}
+el.layListen.onclick = async () => {
+  if (ASSIGN.on) return stopAssign();
+  if (!(await startMic())) return;
+  Object.assign(ASSIGN, { on: true, i: 0, done: [],
+    slots: cfg.angles.slice().sort((a, b) => norm(a - 90) - norm(b - 90)) });
+  el.layListen.textContent = "Abbrechen";
+  assignMsg();
+};
+function layoutStrike(c) {
+  if (!c) { if (ASSIGN.on || !el.pick.hidden) assignMsg("Diesen Ton konnte ich keiner Zunge zuordnen. Schlag nochmal an."); return; }
+  if (!el.pick.hidden && pickK >= 0) { swapTongues(pickK, c.k); el.pick.hidden = true; return; }
+  S.flash[c.k] = 1; ripple(c.k);
+  if (!ASSIGN.on) return;
+  if (ASSIGN.done.includes(c.k)) {
+    assignMsg(`Zunge ${TONGUES[c.k].id} hat schon ihren Platz. Schlag die Zunge am blinkenden Marker an.`);
+    return;
+  }
+  const holder = cfg.angles.findIndex(a => norm(a) === norm(ASSIGN.slots[ASSIGN.i]));
+  if (holder !== c.k) swapTongues(holder, c.k);
+  const p = targetPos(c.k); burst(p.x, p.y, TONGUES[c.k].color, 18);
+  ASSIGN.done.push(c.k); ASSIGN.i++;
+  if (ASSIGN.i >= 5) {   // der letzte Platz ergibt sich von selbst
+    stopAssign("Fertig. Alle sechs Zungen sitzen an ihrem Platz.");
+    return;
+  }
+  assignMsg();
+}
+
+el.layDone.onclick = () => { stopAssign(); el.pick.hidden = true; el.layoutBar.classList.remove("folded"); el.layFold.textContent = "Einklappen"; show("menu"); };
 el.layFold.onclick = () => {
   const f = el.layoutBar.classList.toggle("folded");
   el.layFold.textContent = f ? "Ausklappen" : "Einklappen";
@@ -1203,19 +1442,22 @@ cv.addEventListener("pointerup", e => {
 cv.addEventListener("pointercancel", endDrag);
 
 /* Zuordnung: Marker antippen, Zunge wählen; die beiden Zungen tauschen ihre Plätze */
+let pickK = -1;
+function swapTongues(k, j) {
+  [cfg.angles[k], cfg.angles[j]] = [cfg.angles[j], cfg.angles[k]];
+  rotBase = cfg.angles.map(a => a - Number(el.sRot.value));
+  saveCfg();
+  S.flash[j] = 1; ripple(j);
+}
 function openPicker(k) {
+  pickK = k;
   const p = targetPos(k);
   el.pickChips.innerHTML = "";
   TONGUES.forEach((t, j) => {
     const b = document.createElement("button");
     b.textContent = t.id; b.style.background = t.color;
     b.setAttribute("aria-current", j === k);
-    b.onclick = () => {
-      [cfg.angles[k], cfg.angles[j]] = [cfg.angles[j], cfg.angles[k]];
-      rotBase = cfg.angles.map(a => a - Number(el.sRot.value));
-      saveCfg(); el.pick.hidden = true;
-      S.flash[j] = 1; ripple(j);
-    };
+    b.onclick = () => { swapTongues(k, j); el.pick.hidden = true; };
     el.pickChips.appendChild(b);
   });
   el.pick.hidden = false;
