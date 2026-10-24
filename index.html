@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Zungenheld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: Vollbild-Canvas als Bühne, die Trommel liegt in der Mitte; Bedienelemente schweben in den Ecken. Bewusst nur ein dunkles Neon-Theme. */
+:root{
+  --bg:#07061a;
+  --panel:rgba(18,15,46,.86);
+  --line:rgba(170,160,255,.18);
+  --fg:#f1efff;
+  --muted:#9d97c9;
+  --accent:#ffe23d;
+  --hot:#ff3d81;
+  --ok:#3dffa8;
+  --bad:#ff5d5d;
+  --display:"Bungee","Arial Black",Impact,sans-serif;
+  --body:"Chakra Petch","Avenir Next","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+[hidden]{display:none!important}
+canvas#stage{position:fixed;inset:0;width:100%;height:100%;display:block}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:10px;padding:.55em 1em;font-weight:600;letter-spacing:.02em;transition:background .15s,transform .1s,border-color .15s}
+button:hover{background:rgba(255,255,255,.12);border-color:rgba(200,190,255,.4)}
+button:active{transform:scale(.97)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:#1a1300;border-color:transparent}
+button.primary:hover{background:#fff07a}
+button.ghost{background:transparent}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:600}
+
+/* ---------- Menü ---------- */
+#menu{position:fixed;inset:0;overflow:auto;touch-action:pan-y;
+  padding-block:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-bottom));
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));
+  background:radial-gradient(1200px 700px at 70% 20%,rgba(120,60,255,.22),transparent 60%),radial-gradient(900px 600px at 10% 90%,rgba(255,61,129,.16),transparent 60%),rgba(7,6,26,.82)}
+.menu-wrap{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:820px){.menu-wrap{grid-template-columns:minmax(0,1fr)}}
+.brand{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 22px}
+.brand h1{font-family:var(--display);font-weight:400;font-size:clamp(2.4rem,6vw,4.4rem);line-height:.9;margin:0;
+  background:linear-gradient(90deg,#ff3d81,#ff8a1f 25%,#ffe23d 45%,#3dffa8 65%,#3dd8ff 82%,#b06bff);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(255,120,200,.35))}
+.brand p{margin:0 0 .35em;color:var(--muted);max-width:46ch;line-height:1.4}
+.keys{display:flex;gap:6px;margin-top:6px}
+.keys span{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:.9rem;color:#0b0820}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.songs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.song{text-align:left;padding:16px 16px 14px;border-radius:16px;display:flex;flex-direction:column;gap:6px;min-height:120px;position:relative;overflow:hidden;background:rgba(255,255,255,.04)}
+.song::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:var(--c,#fff);opacity:.13;filter:blur(8px)}
+.song h3{margin:0;font-size:1.12rem;font-weight:700}
+.song .sub{color:var(--muted);font-size:.86rem}
+.song .notes{font-family:var(--display);font-size:.78rem;letter-spacing:.12em;color:var(--c);margin-top:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song .meta{display:flex;gap:10px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.song .meta b{color:var(--fg)}
+.song-actions{display:flex;gap:8px;margin-top:6px}
+.song-actions button{padding:.4em .8em;font-size:.86rem}
+.card{padding:18px;display:flex;flex-direction:column;gap:12px}
+.step{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center}
+.step .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);border:1px solid var(--line);color:var(--muted)}
+.step.done .n{background:var(--ok);color:#06241a;border-color:transparent}
+.step h4{margin:0;font-size:1rem}
+.step small{color:var(--muted);display:block;line-height:1.35}
+.meter{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ok),var(--accent),var(--hot));transition:width .05s linear}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.slider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.slider input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.slider output{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600}
+select{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:.45em .6em}
+select option{background:#16123a}
+.freqs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.freqs div{text-align:center;padding:6px 2px;border-radius:10px;background:rgba(255,255,255,.04);font-size:.74rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.freqs b{display:block;font-family:var(--display);font-size:1rem;font-weight:400}
+.hint{font-size:.82rem;color:var(--muted);line-height:1.45;margin:0}
+
+/* ---------- HUD ---------- */
+.corner{position:fixed;padding:12px 16px;pointer-events:none}
+#hudTL{top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left))}
+#hudTR{top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));text-align:right;pointer-events:auto}
+#hudBL{bottom:max(10px,env(safe-area-inset-bottom));left:max(10px,env(safe-area-inset-left))}
+#hudBR{bottom:max(10px,env(safe-area-inset-bottom));right:max(10px,env(safe-area-inset-right));text-align:right}
+.score{font-family:var(--display);font-size:2.2rem;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(255,226,61,.45);color:var(--accent)}
+.combo{font-family:var(--display);font-size:1.05rem;color:var(--fg);margin-top:4px}
+.combo em{font-style:normal;color:var(--hot)}
+.songtitle{font-weight:700;font-size:1rem}
+.prog{width:180px;height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin:6px 0 8px auto;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent)}
+.ear{display:grid;grid-template-columns:auto auto;gap:2px 12px;align-items:baseline}
+.ear .big{font-family:var(--display);font-size:2rem;line-height:1;grid-row:span 2}
+.ear .hz{font-variant-numeric:tabular-nums;font-weight:600}
+.ear .ct{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.85rem}
+.tuner{width:150px;height:8px;margin-top:8px;border-radius:4px;background:linear-gradient(90deg,rgba(255,93,93,.5),rgba(61,255,168,.7) 45%,rgba(61,255,168,.7) 55%,rgba(255,93,93,.5));position:relative}
+.tuner i{position:absolute;top:-4px;width:3px;height:16px;border-radius:2px;background:#fff;left:50%;transform:translateX(-50%);transition:left .15s}
+.acc{font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.mini-level{width:110px;margin-left:auto;margin-top:6px}
+
+/* ---------- Kalibrierung / Aufbau / Freispiel ---------- */
+.float{position:fixed;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));width:min(380px,calc(100vw - 28px));padding:18px;display:flex;flex-direction:column;gap:12px;z-index:5}
+.float h2{margin:0;font-family:var(--display);font-weight:400;font-size:1.3rem}
+.bigk{font-family:var(--display);font-size:4.2rem;line-height:1;text-align:center;padding:6px 0}
+#layoutBar{left:50%;transform:translateX(-50%);width:min(720px,calc(100vw - 28px))}
+#layoutBar .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+#layoutBar.folded>:not(:first-child){display:none!important}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#1a1300}
+
+/* ---------- Ergebnis ---------- */
+.modal{position:fixed;inset:0;display:grid;place-items:center;background:rgba(7,6,26,.72);z-index:10;padding:16px;touch-action:pan-y;overflow:auto}
+.modal .panel{width:min(520px,100%);padding:24px;display:flex;flex-direction:column;gap:16px}
+.grade{font-family:var(--display);font-size:5rem;line-height:1;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stats div{background:rgba(255,255,255,.05);border-radius:12px;padding:10px;text-align:center}
+.stats b{display:block;font-family:var(--display);font-size:1.4rem;font-weight:400;font-variant-numeric:tabular-nums}
+.stats span{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+textarea{width:100%;min-height:120px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:.95rem;resize:vertical;-webkit-user-select:text;user-select:text}
+.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:10px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);z-index:20;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<!-- ============ MENÜ ============ -->
+<section id="menu">
+  <div class="menu-wrap">
+    <header class="brand">
+      <div>
+        <h1>Zungenheld</h1>
+        <div class="keys" id="brandKeys"></div>
+      </div>
+      <p>Leg die Zungentrommel auf den Bildschirm. Die Töne fliegen auf die Zungen zu: Schlag sie an, wenn sie den Ring erreichen. Das Mikrofon hört mit, ob Ton und Timing stimmen.</p>
+    </header>
+
+    <div class="col">
+      <div class="label">Lieder</div>
+      <div class="songs" id="songList"></div>
+    </div>
+
+    <div class="col">
+      <div class="label">Einrichten</div>
+      <div class="panel card">
+        <div class="step" id="stepMic">
+          <div class="n">1</div>
+          <div><h4>Mikrofon</h4><small id="micStatus">Damit die App hört, was du spielst.</small><div class="meter" style="margin-top:6px"><i id="menuLevel"></i></div></div>
+          <button id="btnMic" class="primary">Starten</button>
+        </div>
+        <div class="step" id="stepCal">
+          <div class="n">2</div>
+          <div><h4>Töne einmessen</h4><small>Jede Zunge einmal anschlagen, dann kennt die App deine Trommel genau.</small></div>
+          <button id="btnCal">Einmessen</button>
+        </div>
+        <div class="freqs" id="freqView"></div>
+        <div class="row">
+          <span class="hint">oder Tonart vorgeben:</span>
+          <select id="rootSel" aria-label="Grundton der Trommel"></select>
+        </div>
+        <div class="step" id="stepLay">
+          <div class="n">3</div>
+          <div><h4>Aufbau</h4><small>Umriss an die Trommel anpassen und die Marker auf die Zungen drehen.</small></div>
+          <button id="btnLayout">Ausrichten</button>
+        </div>
+      </div>
+
+      <div class="panel card">
+        <div class="slider"><label for="sTempo">Tempo</label><output id="oTempo"></output><input id="sTempo" type="range" min="50" max="130" step="5"></div>
+        <div class="slider"><label for="sApproach">Vorlaufzeit der Töne</label><output id="oApproach"></output><input id="sApproach" type="range" min="1.2" max="4" step="0.1"></div>
+        <div class="slider"><label for="sSens">Mikrofon-Empfindlichkeit</label><output id="oSens"></output><input id="sSens" type="range" min="1" max="10" step="1"></div>
+        <div class="slider"><label for="sLat">Latenz-Ausgleich</label><output id="oLat"></output><input id="sLat" type="range" min="0" max="250" step="5"></div>
+        <div class="row" style="justify-content:space-between">
+          <button id="btnFree">Freies Spiel &amp; Stimmgerät</button>
+          <label class="row" style="gap:6px;font-size:.9rem"><input type="checkbox" id="cGuide"> Melodie mitspielen</label>
+        </div>
+        <p class="hint">Ohne Mikrofon kannst du mit den Tasten <b>1 2 3 5 6</b> und <b>8</b> (für i) testen.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HUD ============ -->
+<div id="hud" hidden>
+  <div class="corner" id="hudTL"><div class="score" id="hScore">0</div><div class="combo" id="hCombo"></div></div>
+  <div class="corner" id="hudTR">
+    <div class="songtitle" id="hTitle"></div>
+    <div class="prog"><i id="hProg"></i></div>
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button id="btnPause" class="ghost">Pause</button>
+      <button id="btnQuit" class="ghost">Menü</button>
+    </div>
+  </div>
+  <div class="corner" id="hudBL">
+    <div class="label" style="margin-bottom:4px">Gehört</div>
+    <div class="ear"><div class="big" id="eNote">–</div><div class="hz" id="eHz">— Hz</div><div class="ct" id="eCt">—</div></div>
+    <div class="tuner"><i id="eNeedle"></i></div>
+  </div>
+  <div class="corner" id="hudBR">
+    <div class="label">Treffer</div><div class="acc" id="hAcc">–</div>
+    <div class="meter mini-level"><i id="hLevel"></i></div>
+  </div>
+</div>
+
+<!-- ============ KALIBRIERUNG ============ -->
+<div id="calib" class="panel float" hidden>
+  <h2>Töne einmessen</h2>
+  <p class="hint" id="calText">Schlag die Zunge kräftig an und lass sie ausklingen.</p>
+  <div class="bigk" id="calKey">1</div>
+  <div class="freqs" id="calFreqs"></div>
+  <p class="hint" id="calMsg">Warte auf den Ton …</p>
+  <div class="meter"><i id="calLevel"></i></div>
+  <div class="row" style="justify-content:space-between">
+    <button id="calBack" class="ghost">Zurück</button>
+    <button id="calCancel" class="ghost">Abbrechen</button>
+    <button id="calSave" class="primary" hidden>Speichern</button>
+  </div>
+</div>
+
+<!-- ============ AUFBAU ============ -->
+<div id="layoutBar" class="panel float" hidden>
+  <div class="row" style="justify-content:space-between"><h2>Aufbau</h2><button id="layFold" class="ghost">Einklappen</button></div>
+  <p class="hint">1. Zieh den Kreis an die gewünschte Stelle und pass die Größe an. 2. Leg die Trommel genau auf den Umriss. 3. Zieh jeden farbigen Marker vor die passende Zunge.</p>
+  <div class="grid">
+    <div class="slider"><label for="sSize">Trommelgröße</label><output id="oSize"></output><input id="sSize" type="range" min="60" max="600" step="2"></div>
+    <div class="slider"><label for="sRot">Alles drehen</label><output id="oRot"></output><input id="sRot" type="range" min="-180" max="180" step="1" value="0"></div>
+    <div><div class="label" style="margin-bottom:6px">Ansicht</div>
+      <div class="seg"><button id="vRing" aria-pressed="true">Ring</button><button id="vLane" aria-pressed="false">Bahn</button></div></div>
+  </div>
+  <p class="hint"><b>Ring:</b> Töne fliegen von außen direkt auf die Zungen zu. <b>Bahn:</b> klassische Notenbahn neben der Trommel, gut für kleine Tablets.</p>
+  <div class="row" style="justify-content:space-between">
+    <button id="layReset" class="ghost">Zurücksetzen</button>
+    <button id="layDone" class="primary">Fertig</button>
+  </div>
+</div>
+
+<!-- ============ FREIES SPIEL ============ -->
+<div id="freeBar" class="panel float" hidden>
+  <h2>Freies Spiel</h2>
+  <p class="hint">Spiel, was du willst. Die App zeigt Tonhöhe, Frequenz und wie weit der Ton vom gestimmten Wert abweicht.</p>
+  <div class="ear"><div class="big" id="fNote">–</div><div class="hz" id="fHz">— Hz</div><div class="ct" id="fCt">—</div></div>
+  <div class="tuner" style="width:100%"><i id="fNeedle"></i></div>
+  <div class="meter"><i id="fLevel"></i></div>
+  <div class="row" style="justify-content:flex-end"><button id="freeDone" class="primary">Fertig</button></div>
+</div>
+
+<!-- ============ ERGEBNIS ============ -->
+<div id="result" class="modal" hidden>
+  <div class="panel">
+    <div class="label" id="rTitle"></div>
+    <div class="grade" id="rGrade">A</div>
+    <div class="stats">
+      <div><b id="rScore">0</b><span>Punkte</span></div>
+      <div><b id="rAcc">0%</b><span>Genauigkeit</span></div>
+      <div><b id="rCombo">0</b><span>Max-Combo</span></div>
+      <div><b id="rPerf" style="color:var(--ok)">0</b><span>Perfekt</span></div>
+      <div><b id="rGood" style="color:var(--accent)">0</b><span>Gut / Ok</span></div>
+      <div><b id="rMiss" style="color:var(--bad)">0</b><span>Falsch / Verpasst</span></div>
+    </div>
+    <p class="hint" id="rTiming"></p>
+    <div class="row" id="rLatRow" hidden><button id="rLatFix">Latenz anpassen</button></div>
+    <div class="row" style="justify-content:space-between">
+      <button id="rMenu" class="ghost">Menü</button>
+      <button id="rAgain" class="primary">Nochmal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EIGENES LIED ============ -->
+<div id="custom" class="modal" hidden>
+  <div class="panel">
+    <h2 style="margin:0;font-family:var(--display);font-weight:400">Eigenes Lied</h2>
+    <p class="hint">Ziffern wie auf der Trommel, mit Leerzeichen getrennt. <b>3</b> = 1 Schlag, <b>3-</b> = 2 Schläge, <b>3--</b> = 3, <b>3_</b> = halber Schlag, <b>3.</b> = punktiert, <b>0</b> = Pause, <b>i</b> = hohes C. Taktstriche <b>|</b> werden ignoriert.</p>
+    <textarea id="customText" spellcheck="false" aria-label="Noten des eigenen Liedes"></textarea>
+    <div class="slider"><label for="sCustomBpm">Tempo (BPM)</label><output id="oCustomBpm"></output><input id="sCustomBpm" type="range" min="50" max="160" step="2"></div>
+    <div class="row" style="justify-content:space-between">
+      <button id="customCancel" class="ghost">Abbrechen</button>
+      <button id="customPlay" class="primary">Spielen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+"use strict";
+/* ================================================================
+   Grunddaten
+   ================================================================ */
+const TONGUES = [
+  { id: "1", semi: 0,  color: "#ff3d81" },
+  { id: "2", semi: 2,  color: "#ff8a1f" },
+  { id: "3", semi: 4,  color: "#ffe23d" },
+  { id: "5", semi: 7,  color: "#3dffa8" },
+  { id: "6", semi: 9,  color: "#3dd8ff" },
+  { id: "i", semi: 12, color: "#b06bff" },
+];
+const NOTE_NAMES = ["C", "Cis", "D", "Dis", "E", "F", "Fis", "G", "Gis", "A", "B", "H"];
+const WIN = { perfect: 0.075, good: 0.14, ok: 0.22 };
+const POINTS = { perfect: 100, good: 70, ok: 40 };
+const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+const SONGS = [
+  { id: "scale",   title: "Tonleiter-Treppe", sub: "Aufwärmen · rauf, runter, Sprünge", bpm: 76,
+    src: "1 2 3 5 6 i- 0 i 6 5 3 2 1- 0 1 3 2 5 3 6 5 i- 0 i 5 6 3 5 2 3 1---" },
+  { id: "buns",    title: "Hot Cross Buns", sub: "Kinderlied · ganz leicht", bpm: 88,
+    src: "3 2 1- 3 2 1- 1_ 1_ 1_ 1_ 2_ 2_ 2_ 2_ 3 2 1---" },
+  { id: "mary",    title: "Mary Had a Little Lamb", sub: "Kinderlied · leicht", bpm: 100,
+    src: "3. 2_ 1 2 | 3 3 3- | 2 2 2- | 3 5 5- | 3. 2_ 1 2 | 3 3 3 3 | 2 2 3 2 | 1---" },
+  { id: "susanna", title: "Oh! Susanna", sub: "Stephen Foster · Strophe", bpm: 104,
+    src: "1_ 2_ | 3 5 5. 6_ | 5 3 1. 2_ | 3 3 2 1 | 2-- 1_ 2_ | 3 5 5. 6_ | 5 3 1. 2_ | 3 3 2 2 | 1---" },
+  { id: "jasmine", title: "Jasminblüte", sub: "Mo Li Hua · chinesisches Volkslied", bpm: 66,
+    src: "3 3_ 5_ 6_ i_ i_ 6_ | 5 5_ 6_ 5- | 3 3_ 5_ 6_ i_ i_ 6_ | 5 5_ 6_ 5- | 5 5 5 3_ 5_ | 6 6 5- | 3 2_ 3_ 5 3_ 2_ | 1 1_ 2_ 1-" },
+  { id: "random",  title: "Endlos-Zufall", sub: "Jedes Mal eine neue Melodie", bpm: 92, src: null },
+  { id: "custom",  title: "Eigenes Lied", sub: "Noten selbst eintippen", bpm: 90, src: null },
+];
+
+/* ================================================================
+   Einstellungen (pro Gerät im Browser gespeichert)
+   ================================================================ */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("zungenheld." + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("zungenheld." + k, JSON.stringify(v)); } catch {} },
+};
+const DEFAULT_ANGLES = [90, 30, 150, -30, 210, 270];
+const cfg = Object.assign({
+  root: 72, freqs: null, calibrated: false,
+  angles: DEFAULT_ANGLES.slice(), cx: 0.5, cy: 0.5, r: null,
+  view: "ring", latency: 70, approach: 2.4, tempo: 100, sens: 5, guide: false,
+  customText: "3 5 6 5 3 2 1- | 2 3 5 3 2- 0 | 3 5 6 i 6 5 3 | 2 3 2 1---", customBpm: 90,
+}, store.get("cfg", {}));
+if (!cfg.freqs) cfg.freqs = TONGUES.map(t => midiToFreq(cfg.root + t.semi));
+const best = store.get("best", {});
+const saveCfg = () => store.set("cfg", cfg);
+
+/* ================================================================
+   Canvas & Geometrie
+   ================================================================ */
+const cv = document.getElementById("stage");
+const g = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (!cfg.r) cfg.r = Math.round(Math.min(W, H) * 0.3);
+}
+addEventListener("resize", resize);
+resize();
+
+function geom() {
+  const r = cfg.r, cx = cfg.cx * W, cy = cfg.cy * H;
+  return { cx, cy, r, tr: r + 30 };
+}
+const rad = a => a * Math.PI / 180;
+function edgeDist(cx, cy, dx, dy) {
+  let t = Infinity;
+  if (dx > 1e-6) t = Math.min(t, (W - cx) / dx);
+  if (dx < -1e-6) t = Math.min(t, -cx / dx);
+  if (dy > 1e-6) t = Math.min(t, (H - cy) / dy);
+  if (dy < -1e-6) t = Math.min(t, -cy / dy);
+  return t;
+}
+/* Bahn-Ansicht: Notenbahn auf der breiteren Seite neben der Trommel */
+function laneGeom() {
+  const { cx, r } = geom();
+  const left = cx - r - 40, right = W - (cx + r) - 40;
+  const onLeft = left >= right;
+  const x0 = onLeft ? 24 : cx + r + 40, x1 = onLeft ? cx - r - 40 : W - 24;
+  const width = Math.max(120, x1 - x0);
+  return { x0, x1: x0 + width, lw: width / 6, top: 70, hitY: H - 160 };
+}
+function targetPos(k) {
+  if (cfg.view === "lane") {
+    const L = laneGeom();
+    return { x: L.x0 + L.lw * (k + 0.5), y: L.hitY };
+  }
+  const { cx, cy, tr } = geom(), a = rad(cfg.angles[k]);
+  return { x: cx + Math.cos(a) * tr, y: cy + Math.sin(a) * tr };
+}
+/* größte freie Fläche neben der Trommel, für Countdown und große Meldungen */
+function freeZone() {
+  const { cx, cy, r } = geom();
+  const zones = [
+    { x: (cx - r) / 2, y: H / 2, a: (cx - r) * H },
+    { x: (cx + r + W) / 2, y: H / 2, a: (W - cx - r) * H },
+    { x: W / 2, y: (cy - r) / 2, a: (cy - r) * W },
+    { x: W / 2, y: (cy + r + H) / 2, a: (H - cy - r) * W },
+  ];
+  return zones.sort((a, b) => b.a - a.a)[0];
+}
+
+/* ================================================================
+   Audio: Mikrofon, Einsatzerkennung, Tonhöhe (McLeod-Verfahren)
+   ================================================================ */
+const A = { ctx: null, analyser: null, buf: null, sr: 48000, on: false, level: 0,
+  hist: [], floor: 0.002, lastOnset: 0, pending: null };
+
+function ensureCtx() {
+  if (!A.ctx) A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (A.ctx.state === "suspended") A.ctx.resume();
+  return A.ctx;
+}
+async function startMic() {
+  if (A.on) return true;
+  try {
+    ensureCtx();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const src = A.ctx.createMediaStreamSource(stream);
+    A.analyser = A.ctx.createAnalyser();
+    A.analyser.fftSize = 2048;
+    A.analyser.smoothingTimeConstant = 0;
+    src.connect(A.analyser);
+    A.buf = new Float32Array(A.analyser.fftSize);
+    A.sr = A.ctx.sampleRate;
+    A.on = true;
+    return true;
+  } catch (e) {
+    toast(location.protocol === "http:" && location.hostname !== "localhost"
+      ? "Mikrofon braucht eine https-Adresse oder localhost."
+      : "Kein Mikrofonzugriff. Bitte im Browser erlauben.");
+    return false;
+  }
+}
+
+function detectPitch(buf, sr) {
+  const N = 1024, off = buf.length - N;
+  let e = 0;
+  for (let i = 0; i < N; i++) e += buf[off + i] * buf[off + i];
+  if (e / N < 1e-7) return null;
+  const maxLag = Math.min(N - 2, Math.floor(sr / 110)), minLag = Math.max(2, Math.floor(sr / 3200));
+  const nsdf = new Float32Array(maxLag + 2);
+  for (let tau = 0; tau <= maxLag + 1; tau++) {
+    let acf = 0, m = 0;
+    for (let i = 0, n = N - tau; i < n; i++) {
+      const a = buf[off + i], b = buf[off + i + tau];
+      acf += a * b; m += a * a + b * b;
+    }
+    nsdf[tau] = m > 0 ? 2 * acf / m : 0;
+  }
+  const peaks = [];
+  let tau = 1;
+  while (tau < maxLag && nsdf[tau] > 0) tau++;
+  while (tau < maxLag) {
+    while (tau < maxLag && nsdf[tau] <= 0) tau++;
+    let pk = -1, pv = -1;
+    while (tau < maxLag && nsdf[tau] > 0) { if (nsdf[tau] > pv) { pv = nsdf[tau]; pk = tau; } tau++; }
+    if (pk > 0) peaks.push([pk, pv]);
+  }
+  if (!peaks.length) return null;
+  const top = Math.max(...peaks.map(p => p[1]));
+  const [p, v] = peaks.find(q => q[1] >= 0.88 * top);
+  if (p < minLag) return null;
+  const a = nsdf[p - 1], b = nsdf[p], c = nsdf[p + 1], den = a - 2 * b + c;
+  const shift = den !== 0 ? (a - c) / (2 * den) : 0;
+  return { freq: sr / (p + shift), clarity: v };
+}
+
+function audioFrame(now) {
+  if (!A.on) return;
+  A.analyser.getFloatTimeDomainData(A.buf);
+  const b = A.buf, n = 512;
+  let s = 0;
+  for (let i = b.length - n; i < b.length; i++) s += b[i] * b[i];
+  const rms = Math.sqrt(s / n);
+  A.level = rms;
+  const recentMin = A.hist.length ? Math.min(...A.hist) : rms;
+  A.hist.push(rms); if (A.hist.length > 5) A.hist.shift();
+
+  const ratio = 3.0 - cfg.sens * 0.18;
+  const minAbs = 0.03 * Math.pow(0.68, cfg.sens);
+  if (!A.pending && rms > minAbs && rms > A.floor * 4 && rms > recentMin * ratio && now - A.lastOnset > 0.09) {
+    A.pending = { t: now - 0.012, cands: [], until: now + 0.1 };
+    A.lastOnset = now;
+  }
+  if (!A.pending) A.floor = Math.max(2e-4, A.floor * 0.99 + rms * 0.01);
+
+  if (A.pending) {
+    const p = detectPitch(b, A.sr);
+    if (p && p.clarity > 0.72 && p.freq > 150 && p.freq < 3200) A.pending.cands.push(p);
+    if (now >= A.pending.until || A.pending.cands.length >= 4) {
+      const c = A.pending.cands;
+      if (c.length) {
+        const f = c.map(x => x.freq).sort((x, y) => x - y)[Math.floor(c.length / 2)];
+        strike(f, A.pending.t - cfg.latency / 1000, false);
+      }
+      A.pending = null;
+    }
+  }
+}
+
+/* nächste Zunge zur gehörten Frequenz, Oktavfehler der Erkennung abgefangen */
+function classify(freq) {
+  let bestM = null;
+  cfg.freqs.forEach((f, k) => {
+    for (const [mult, pen] of [[1, 0], [0.5, 35], [2, 35]]) {
+      const cents = 1200 * Math.log2(freq * mult / f);
+      const d = Math.abs(cents) + pen;
+      if (!bestM || d < bestM.d) bestM = { k, cents, d };
+    }
+  });
+  return bestM && Math.abs(bestM.cents) < 120 ? bestM : null;
+}
+function noteName(freq) {
+  const m = 69 + 12 * Math.log2(freq / 440), r = Math.round(m);
+  return { name: NOTE_NAMES[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1), cents: (m - r) * 100 };
+}
+
+/* Klang einer Zungentrommel für Vorschau und Mitspielen */
+function pling(f, when, vel = 0.5) {
+  const ctx = ensureCtx(), t = when ?? ctx.currentTime;
+  [[1, 1, 2.2], [2, 0.18, 0.7], [3, 0.06, 0.3]].forEach(([mul, amp, dec]) => {
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * mul;
+    gn.gain.setValueAtTime(0, t);
+    gn.gain.linearRampToValueAtTime(vel * amp, t + 0.006);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dec);
+    o.connect(gn).connect(ctx.destination);
+    o.start(t); o.stop(t + dec + 0.05);
+  });
+}
+
+/* ================================================================
+   Lieder einlesen
+   ================================================================ */
+function parseSong(src) {
+  const out = [];
+  for (const tok of src.replace(/\|/g, " ").split(/\s+/).filter(Boolean)) {
+    const m = tok.match(/^([0-9i])('?)(-*)(_*)(\.?)$/i);
+    if (!m) continue;
+    let d = m[1].toLowerCase();
+    if (d === "8" || (d === "1" && m[2])) d = "i";
+    const k = d === "0" ? -1 : TONGUES.findIndex(t => t.id === d);
+    if (d !== "0" && k < 0) continue;
+    let beats = 1 + m[3].length;
+    beats *= Math.pow(0.5, m[4].length);
+    if (m[5]) beats *= 1.5;
+    out.push({ k, beats });
+  }
+  return out;
+}
+function randomSong() {
+  const ev = []; let k = 0;
+  const rhythms = [1, 1, 1, 1, 0.5, 0.5, 2];
+  for (let i = 0; i < 44; i++) {
+    const step = [-2, -1, -1, 1, 1, 2, 0][Math.floor(Math.random() * 7)];
+    k = Math.max(0, Math.min(5, k + step));
+    let beats = rhythms[Math.floor(Math.random() * rhythms.length)];
+    if (beats === 0.5) { ev.push({ k, beats }); k = Math.max(0, Math.min(5, k + (Math.random() < .5 ? 1 : -1))); }
+    ev.push({ k, beats });
+    if (i % 8 === 7) ev.push({ k: 0, beats: 2 }), k = 0;
+  }
+  return ev;
+}
+
+/* ================================================================
+   Spielzustand
+   ================================================================ */
+const S = {
+  mode: "menu",            // menu | play | calib | layout | free
+  song: null, notes: [], t0: 0, beat: 0.6, lead: 0, end: 0, preview: false,
+  paused: false, pausedAt: 0,
+  score: 0, combo: 0, maxCombo: 0, counts: null, offsets: [],
+  flash: TONGUES.map(() => 0),
+  particles: [], texts: [], ripples: [],
+};
+const now = () => performance.now() / 1000;
+
+function startSong(song, preview = false) {
+  ensureCtx();
+  let events, bpm = song.bpm;
+  if (song.id === "random") events = randomSong();
+  else if (song.id === "custom") { events = parseSong(cfg.customText); bpm = cfg.customBpm; }
+  else events = parseSong(song.src);
+  if (!events.some(e => e.k >= 0)) { toast("Das Lied enthält keine Noten."); return; }
+
+  bpm = bpm * cfg.tempo / 100;
+  const beat = 60 / bpm;
+  const lead = Math.max(cfg.approach, 4 * beat) + 0.6;
+  const notes = []; let t = lead;
+  for (const e of events) { if (e.k >= 0) notes.push({ t, k: e.k, state: "pending" }); t += e.beats * beat; }
+
+  Object.assign(S, { mode: "play", song, notes, beat, lead, end: notes[notes.length - 1].t + 1.6,
+    preview, paused: false, score: 0, combo: 0, maxCombo: 0, offsets: [],
+    counts: { perfect: 0, good: 0, ok: 0, wrong: 0, miss: 0 }, particles: [], texts: [] });
+  S.t0 = now();
+  if (preview || cfg.guide) scheduleGuide();
+  show("hud");
+  el.hTitle.textContent = song.title + (preview ? " · Vorschau" : "");
+  el.btnPause.textContent = "Pause";
+  requestWake();
+}
+function scheduleGuide() {
+  const ctx = ensureCtx(), offs = ctx.currentTime - (now() - S.t0);
+  S.guideNodesAt = ctx.currentTime;
+  for (const n of S.notes) pling(cfg.freqs[n.k], offs + n.t, S.preview ? 0.5 : 0.22);
+}
+function songTime() { return (S.paused ? S.pausedAt : now()) - S.t0; }
+
+function togglePause() {
+  if (S.mode !== "play") return;
+  if (!S.paused) { S.paused = true; S.pausedAt = now(); el.btnPause.textContent = "Weiter"; if (A.ctx) A.ctx.suspend(); }
+  else { S.t0 += now() - S.pausedAt; S.paused = false; el.btnPause.textContent = "Pause"; if (A.ctx) A.ctx.resume(); }
+}
+
+function judge(note, kind, offset) {
+  note.state = kind === "wrong" || kind === "miss" ? kind : "hit";
+  note.judge = kind;
+  S.counts[kind]++;
+  const p = targetPos(note.k), col = TONGUES[note.k].color;
+  if (POINTS[kind]) {
+    S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo);
+    const mult = Math.min(4, 1 + Math.floor(S.combo / 10));
+    S.score += POINTS[kind] * mult;
+    S.offsets.push(offset);
+    S.flash[note.k] = 1;
+    burst(p.x, p.y, col, kind === "perfect" ? 26 : 16);
+    const label = { perfect: "PERFEKT", good: "GUT", ok: "OK" }[kind];
+    let sub = "";
+    if (kind !== "perfect") sub = offset < 0 ? `${Math.round(-offset * 1000)} ms zu früh` : `${Math.round(offset * 1000)} ms zu spät`;
+    floatText(p.x, p.y, label, kind === "perfect" ? "#3dffa8" : kind === "good" ? "#ffe23d" : "#ff8a1f", sub);
+  } else {
+    S.combo = 0;
+  }
+}
+
+/* Ein erkannter Anschlag: aus Mikrofon, Tastatur oder Klick */
+function strike(freq, t, simulated) {
+  const c = classify(freq), nn = noteName(freq);
+  showEar(nn, freq, c);
+  if (S.mode === "calib") return calibStrike(freq);
+  if (!c) { if (S.mode === "play" && !S.preview) noise(); return; }
+  S.flash[c.k] = Math.max(S.flash[c.k], 0.7);
+  ripple(c.k);
+  if (S.mode !== "play" || S.preview || S.paused) return;
+
+  const st = t - S.t0;
+  const near = S.notes.filter(n => n.state === "pending" && Math.abs(n.t - st) <= WIN.ok);
+  const same = near.filter(n => n.k === c.k).sort((a, b) => Math.abs(a.t - st) - Math.abs(b.t - st))[0];
+  if (same) {
+    const off = st - same.t, ad = Math.abs(off);
+    judge(same, ad <= WIN.perfect ? "perfect" : ad <= WIN.good ? "good" : "ok", off);
+  } else if (near.length) {
+    const n = near.sort((a, b) => Math.abs(a.t - st) - Math.abs(b.t - st))[0];
+    judge(n, "wrong", 0);
+    const p = targetPos(n.k);
+    floatText(p.x, p.y, "FALSCH", "#ff5d5d", `${TONGUES[c.k].id} statt ${TONGUES[n.k].id}`);
+    const q = targetPos(c.k);
+    burst(q.x, q.y, "#ff5d5d", 8);
+  } else {
+    const q = targetPos(c.k);
+    floatText(q.x, q.y, "?", "#9d97c9", "kein Ton fällig", 0.6);
+  }
+}
+function noise() { /* unbekannter Klang: bewusst keine Strafe */ }
+
+function updatePlay() {
+  if (S.paused) return;
+  const st = songTime();
+  for (const n of S.notes) {
+    if (n.state !== "pending") continue;
+    if (S.preview && st >= n.t) {
+      n.state = "hit"; S.flash[n.k] = 1;
+      const p = targetPos(n.k); burst(p.x, p.y, TONGUES[n.k].color, 14);
+    } else if (st - n.t > WIN.ok) {
+      judge(n, "miss", 0);
+      const p = targetPos(n.k);
+      floatText(p.x, p.y, "VERPASST", "#ff5d5d", "", 0.8);
+    }
+  }
+  if (st > S.end) finishSong();
+}
+
+function finishSong() {
+  S.mode = "result";
+  releaseWake();
+  if (S.preview) { show("menu"); return; }
+  const c = S.counts, total = S.notes.length;
+  const acc = (c.perfect + c.good * 0.7 + c.ok * 0.4) / total;
+  const grade = acc >= 0.95 ? "S" : acc >= 0.85 ? "A" : acc >= 0.7 ? "B" : acc >= 0.5 ? "C" : "D";
+  const key = S.song.id;
+  if (key !== "random" && key !== "custom" && (!best[key] || S.score > best[key].score)) {
+    best[key] = { score: S.score, grade }; store.set("best", best);
+  }
+  el.rTitle.textContent = S.song.title;
+  el.rGrade.textContent = grade;
+  el.rGrade.style.color = { S: "#3dffa8", A: "#3dd8ff", B: "#ffe23d", C: "#ff8a1f", D: "#ff5d5d" }[grade];
+  el.rScore.textContent = S.score.toLocaleString("de-DE");
+  el.rAcc.textContent = Math.round(acc * 100) + "%";
+  el.rCombo.textContent = S.maxCombo;
+  el.rPerf.textContent = c.perfect;
+  el.rGood.textContent = c.good + c.ok;
+  el.rMiss.textContent = c.wrong + c.miss;
+  const mean = S.offsets.length ? S.offsets.reduce((a, b) => a + b, 0) / S.offsets.length : 0;
+  const ms = Math.round(mean * 1000);
+  S.suggestLat = ms;
+  if (S.offsets.length >= 5 && Math.abs(ms) >= 25) {
+    el.rTiming.textContent = `Im Schnitt warst du ${Math.abs(ms)} ms ${ms > 0 ? "zu spät" : "zu früh"}. Wenn sich das für dich pünktlich angefühlt hat, liegt es am Mikrofon. Dann hilft ein angepasster Latenz-Ausgleich.`;
+    el.rLatFix.textContent = `Latenz auf ${clampLat(cfg.latency + ms)} ms setzen`;
+    el.rLatRow.hidden = false;
+  } else {
+    el.rTiming.textContent = S.offsets.length ? `Timing im Schnitt: ${ms >= 0 ? "+" : ""}${ms} ms. Sehr pünktlich.` : "";
+    el.rLatRow.hidden = true;
+  }
+  el.hud.hidden = true;
+  el.result.hidden = false;
+}
+const clampLat = v => Math.max(0, Math.min(250, Math.round(v / 5) * 5));
+
+/* ================================================================
+   Effekte
+   ================================================================ */
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 260;
+    S.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color, size: 2 + Math.random() * 3 });
+  }
+}
+function floatText(x, y, text, color, sub = "", scale = 1) {
+  const { cx, cy } = geom();
+  let dx = x - cx, dy = y - cy; const d = Math.hypot(dx, dy) || 1;
+  if (cfg.view === "lane") { dx = 0; dy = -1; } else { dx /= d; dy /= d; }
+  S.texts.push({ x: x + dx * 40, y: y + dy * 40, dx, dy, text, sub, color, life: 1, scale });
+}
+function ripple(k) { S.ripples.push({ k, life: 1 }); }
+
+/* ================================================================
+   Zeichnen
+   ================================================================ */
+function glowDot(x, y, r, color, alpha = 1) {
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, color); gr.addColorStop(1, "transparent");
+  g.globalAlpha = alpha; g.fillStyle = gr;
+  g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+}
+
+function drawBackground(t) {
+  g.fillStyle = "#07061a"; g.fillRect(0, 0, W, H);
+  const { cx, cy, r } = geom();
+  const gr = g.createRadialGradient(cx, cy, r * 0.5, cx, cy, Math.max(W, H));
+  gr.addColorStop(0, "rgba(90,50,200,.28)"); gr.addColorStop(0.5, "rgba(40,20,90,.12)"); gr.addColorStop(1, "transparent");
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // Takt-Wellen
+  const beat = S.mode === "play" ? S.beat : 1.2;
+  const st = S.mode === "play" ? songTime() : t;
+  const phase = ((st / beat) % 1 + 1) % 1;
+  const maxR = Math.hypot(W, H);
+  g.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const p = (phase + i) / 3, rr = r + 30 + p * maxR * 0.6;
+    g.strokeStyle = `rgba(160,130,255,${0.10 * (1 - p)})`;
+    g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke();
+  }
+}
+
+function drawDrum() {
+  const { cx, cy, r } = geom();
+  const gr = g.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+  gr.addColorStop(0, "#2b2758"); gr.addColorStop(1, "#110f2a");
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 2; g.strokeStyle = "rgba(200,190,255,.35)"; g.stroke();
+  TONGUES.forEach((tg, k) => {
+    const a = rad(cfg.angles[k]), ux = Math.cos(a), uy = Math.sin(a), px = -uy, py = ux;
+    const w = r * 0.13, r1 = r * 0.86, r0 = r * 0.4;
+    g.beginPath();
+    g.moveTo(cx + ux * r1 + px * w, cy + uy * r1 + py * w);
+    g.lineTo(cx + ux * r0 + px * w, cy + uy * r0 + py * w);
+    g.arc(cx + ux * r0, cy + uy * r0, w, a + Math.PI / 2, a - Math.PI / 2);
+    g.lineTo(cx + ux * r1 - px * w, cy + uy * r1 - py * w);
+    g.strokeStyle = tg.color; g.globalAlpha = 0.35 + S.flash[k] * 0.6; g.lineWidth = 2; g.stroke();
+    g.globalAlpha = 1;
+    g.fillStyle = tg.color; g.font = `${Math.max(12, r * 0.13)}px Bungee, Impact, sans-serif`;
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(tg.id, cx + ux * r * 0.63, cy + uy * r * 0.63);
+  });
+}
+
+function drawRing(t) {
+  const { cx, cy, tr } = geom();
+  TONGUES.forEach((tg, k) => {
+    const a = rad(cfg.angles[k]), ux = Math.cos(a), uy = Math.sin(a);
+    const ed = edgeDist(cx, cy, ux, uy);
+    const x0 = cx + ux * tr, y0 = cy + uy * tr, x1 = cx + ux * ed, y1 = cy + uy * ed;
+    const lg = g.createLinearGradient(x0, y0, x1, y1);
+    lg.addColorStop(0, tg.color + "55"); lg.addColorStop(1, tg.color + "00");
+    g.strokeStyle = lg; g.lineWidth = 38; g.lineCap = "round";
+    g.globalAlpha = 0.35; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.globalAlpha = 1; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    drawTarget(x0, y0, k, t);
+  });
+}
+function drawTarget(x, y, k, t) {
+  const tg = TONGUES[k], f = S.flash[k];
+  if (f > 0.01) glowDot(x, y, 46 + f * 26, tg.color, f * 0.9);
+  g.lineWidth = 3; g.strokeStyle = tg.color;
+  g.beginPath(); g.arc(x, y, 20, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = "rgba(7,6,26,.8)"; g.fill();
+  g.fillStyle = tg.color; g.font = "17px Bungee, Impact, sans-serif";
+  g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(tg.id, x, y + 1);
+}
+function drawLanes(t) {
+  const L = laneGeom();
+  g.fillStyle = "rgba(20,16,50,.55)";
+  g.fillRect(L.x0, 0, L.x1 - L.x0, H);
+  TONGUES.forEach((tg, k) => {
+    const x = L.x0 + L.lw * (k + 0.5);
+    const lg = g.createLinearGradient(0, L.top, 0, L.hitY);
+    lg.addColorStop(0, tg.color + "00"); lg.addColorStop(1, tg.color + "55");
+    g.strokeStyle = lg; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, L.hitY); g.stroke();
+  });
+  g.strokeStyle = "rgba(255,255,255,.35)"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(L.x0, L.hitY); g.lineTo(L.x1, L.hitY); g.stroke();
+  TONGUES.forEach((tg, k) => drawTarget(L.x0 + L.lw * (k + 0.5), L.hitY, k, t));
+}
+
+function notePos(n, st) {
+  const dt = n.t - st, p = dt / cfg.approach;
+  if (cfg.view === "lane") {
+    const L = laneGeom();
+    return { x: L.x0 + L.lw * (n.k + 0.5), y: L.hitY - (L.hitY - L.top) * p, p };
+  }
+  const { cx, cy, tr } = geom(), a = rad(cfg.angles[n.k]), ux = Math.cos(a), uy = Math.sin(a);
+  const d = tr + (edgeDist(cx, cy, ux, uy) + 24 - tr) * p;
+  return { x: cx + ux * d, y: cy + uy * d, p };
+}
+function drawNotes() {
+  const st = songTime();
+  for (const n of S.notes) {
+    const dt = n.t - st;
+    if (dt > cfg.approach || dt < -0.5) continue;
+    if (n.state === "hit") continue;
+    const { x, y, p } = notePos(n, st);
+    const tg = TONGUES[n.k];
+    const dead = n.state === "miss" || n.state === "wrong";
+    const alpha = dt < 0 ? Math.max(0, 1 + dt * 3) : Math.min(1, (1 - p) * 4);
+    const size = 13 + 6 * (1 - Math.max(0, p));
+    if (dead) {
+      g.globalAlpha = alpha * 0.5; g.fillStyle = "#5a557d";
+      g.beginPath(); g.arc(x, y, size, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+      continue;
+    }
+    g.globalCompositeOperation = "lighter";
+    glowDot(x, y, size * 2.6, tg.color, alpha * 0.75);
+    g.globalCompositeOperation = "source-over";
+    g.globalAlpha = alpha;
+    g.fillStyle = tg.color; g.beginPath(); g.arc(x, y, size, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(255,255,255,.85)"; g.beginPath(); g.arc(x - size * 0.3, y - size * 0.35, size * 0.32, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#0b0820"; g.font = `${Math.round(size * 1.05)}px Bungee, Impact, sans-serif`;
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(tg.id, x, y + 1);
+    g.globalAlpha = 1;
+  }
+}
+
+function drawFx(dt) {
+  g.globalCompositeOperation = "lighter";
+  for (const p of S.particles) {
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; p.life -= dt * 1.6;
+    g.globalAlpha = Math.max(0, p.life); g.fillStyle = p.color;
+    g.beginPath(); g.arc(p.x, p.y, p.size, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+  S.particles = S.particles.filter(p => p.life > 0);
+
+  for (const r of S.ripples) {
+    r.life -= dt * 1.8;
+    const p = targetPos(r.k);
+    g.strokeStyle = TONGUES[r.k].color; g.globalAlpha = Math.max(0, r.life); g.lineWidth = 3;
+    g.beginPath(); g.arc(p.x, p.y, 20 + (1 - r.life) * 50, 0, Math.PI * 2); g.stroke();
+  }
+  g.globalAlpha = 1;
+  S.ripples = S.ripples.filter(r => r.life > 0);
+
+  for (const tx of S.texts) {
+    tx.life -= dt * 1.1; tx.x += tx.dx * 30 * dt; tx.y += tx.dy * 30 * dt;
+    const a = Math.max(0, Math.min(1, tx.life * 2));
+    const pop = 1 + Math.max(0, tx.life - 0.85) * 2;
+    g.globalAlpha = a; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = `${Math.round(22 * tx.scale * pop)}px Bungee, Impact, sans-serif`;
+    g.fillStyle = tx.color; g.shadowColor = tx.color; g.shadowBlur = 14;
+    g.fillText(tx.text, tx.x, tx.y);
+    g.shadowBlur = 0;
+    if (tx.sub) { g.font = "600 13px 'Chakra Petch', sans-serif"; g.fillStyle = "#f1efff"; g.fillText(tx.sub, tx.x, tx.y + 20 * tx.scale); }
+  }
+  g.globalAlpha = 1;
+  S.texts = S.texts.filter(t => t.life > 0);
+  for (let k = 0; k < 6; k++) S.flash[k] = Math.max(0, S.flash[k] - dt * 2.5);
+}
+
+function drawCountdown() {
+  const st = songTime(), first = S.notes[0].t, beatsLeft = (first - st) / S.beat;
+  if (beatsLeft > 4 || beatsLeft < 0) return;
+  const z = freeZone(), n = Math.ceil(beatsLeft), frac = beatsLeft - Math.floor(beatsLeft);
+  const txt = n >= 1 ? String(n) : "LOS!";
+  g.globalAlpha = Math.min(1, frac * 1.5 + 0.2);
+  g.font = `${Math.round(70 + frac * 30)}px Bungee, Impact, sans-serif`;
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "#ffe23d"; g.shadowColor = "#ffe23d"; g.shadowBlur = 24;
+  g.fillText(txt, z.x, z.y); g.shadowBlur = 0; g.globalAlpha = 1;
+}
+function drawPaused() {
+  const z = freeZone();
+  g.fillStyle = "rgba(7,6,26,.5)"; g.fillRect(0, 0, W, H);
+  g.font = "48px Bungee, Impact, sans-serif"; g.fillStyle = "#f1efff";
+  g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("PAUSE", z.x, z.y);
+}
+
+function drawLayoutHandles() {
+  const { cx, cy, r } = geom();
+  g.setLineDash([10, 8]); g.lineWidth = 3; g.strokeStyle = "#ffe23d";
+  g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke(); g.setLineDash([]);
+  const hx = cx + Math.cos(rad(-45)) * r, hy = cy + Math.sin(rad(-45)) * r;
+  g.fillStyle = "#ffe23d"; g.beginPath(); g.arc(hx, hy, 12, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#1a1300"; g.font = "bold 14px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("⤡", hx, hy);
+  g.strokeStyle = "rgba(255,226,61,.6)"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(cx - 14, cy); g.lineTo(cx + 14, cy); g.moveTo(cx, cy - 14); g.lineTo(cx, cy + 14); g.stroke();
+}
+
+let lastT = now();
+function frame() {
+  const t = now(), dt = Math.min(0.05, t - lastT); lastT = t;
+  audioFrame(t);
+  drawBackground(t);
+  const showDrum = S.mode !== "menu";
+  if (S.mode === "play") updatePlay();
+  if (showDrum || S.mode === "menu") {
+    if (cfg.view === "lane" && S.mode !== "layout") drawLanes(t); else drawRing(t);
+    drawDrum();
+  }
+  if (S.mode === "play") { drawNotes(); drawCountdown(); }
+  if (S.mode === "layout") drawLayoutHandles();
+  drawFx(dt);
+  if (S.mode === "play" && S.paused) drawPaused();
+  updateHud();
+  requestAnimationFrame(frame);
+}
+
+/* ================================================================
+   HUD & UI
+   ================================================================ */
+const el = {};
+document.querySelectorAll("[id]").forEach(n => el[n.id] = n);
+
+function show(which) {
+  el.menu.hidden = which !== "menu";
+  el.hud.hidden = which !== "hud";
+  el.calib.hidden = which !== "calib";
+  el.layoutBar.hidden = which !== "layout";
+  el.freeBar.hidden = which !== "free";
+  el.result.hidden = true;
+  if (which === "menu") { S.mode = "menu"; renderMenu(); }
+}
+function toast(msg) {
+  el.toast.textContent = msg; el.toast.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => el.toast.hidden = true, 3200);
+}
+
+function showEar(nn, freq, c) {
+  const note = c ? TONGUES[c.k].id : "?";
+  const cents = c ? c.cents : nn.cents;
+  const txt = `${nn.name}`, hz = `${freq.toFixed(1)} Hz`;
+  const ct = c ? `Zunge ${note} · ${cents >= 0 ? "+" : ""}${cents.toFixed(0)} ct` : "keine Zunge erkannt";
+  const pos = 50 + Math.max(-50, Math.min(50, cents));
+  for (const [n, h, cc, nd] of [[el.eNote, el.eHz, el.eCt, el.eNeedle], [el.fNote, el.fHz, el.fCt, el.fNeedle]]) {
+    n.textContent = txt; h.textContent = hz; cc.textContent = ct; nd.style.left = pos + "%";
+    n.style.color = c ? TONGUES[c.k].color : "#9d97c9";
+  }
+}
+
+let lastHud = 0;
+function updateHud() {
+  const lv = Math.min(100, Math.sqrt(A.level) * 260) + "%";
+  el.menuLevel.style.width = el.hLevel.style.width = el.calLevel.style.width = el.fLevel.style.width = lv;
+  if (S.mode !== "play" || performance.now() - lastHud < 60) return;
+  lastHud = performance.now();
+  el.hScore.textContent = S.score.toLocaleString("de-DE");
+  const mult = Math.min(4, 1 + Math.floor(S.combo / 10));
+  el.hCombo.innerHTML = S.combo > 1 ? `${S.combo} Combo <em>×${mult}</em>` : "";
+  const done = S.notes.filter(n => n.state !== "pending").length;
+  el.hProg.style.width = (100 * done / S.notes.length) + "%";
+  const c = S.counts, judged = c.perfect + c.good + c.ok + c.wrong + c.miss;
+  el.hAcc.textContent = S.preview ? "Vorschau" : judged ? Math.round(100 * (c.perfect + c.good + c.ok) / judged) + "%" : "–";
+}
+
+function renderMenu() {
+  el.brandKeys.innerHTML = TONGUES.map(t => `<span style="background:${t.color}">${t.id}</span>`).join("");
+  el.songList.innerHTML = "";
+  for (const s of SONGS) {
+    const col = TONGUES[SONGS.indexOf(s) % 6].color;
+    const b = best[s.id];
+    const preview = s.src ? parseSong(s.src).filter(e => e.k >= 0).map(e => TONGUES[e.k].id).join(" ")
+      : s.id === "random" ? "? ? ? ? ? ? ?" : cfg.customText;
+    const div = document.createElement("div");
+    div.className = "song panel"; div.style.setProperty("--c", col);
+    div.innerHTML = `<h3></h3><div class="sub"></div>
+      <div class="meta"><span><b>${s.id === "custom" ? cfg.customBpm : s.bpm}</b> BPM</span>${b ? `<span>Rekord <b>${b.score.toLocaleString("de-DE")}</b> · ${b.grade}</span>` : ""}</div>
+      <div class="notes"></div>
+      <div class="song-actions"><button class="primary" data-a="play">Spielen</button>${s.id === "custom" ? `<button data-a="edit">Bearbeiten</button>` : s.id !== "random" ? `<button data-a="listen">Anhören</button>` : ""}</div>`;
+    div.querySelector("h3").textContent = s.title;
+    div.querySelector(".sub").textContent = s.sub;
+    div.querySelector(".notes").textContent = preview;
+    div.querySelector('[data-a="play"]').onclick = () => s.id === "custom" && !cfg.customText.trim() ? openCustom() : startSong(s);
+    const l = div.querySelector('[data-a="listen"]'); if (l) l.onclick = () => startSong(s, true);
+    const ed = div.querySelector('[data-a="edit"]'); if (ed) ed.onclick = openCustom;
+    el.songList.appendChild(div);
+  }
+  el.freqView.innerHTML = TONGUES.map((t, k) =>
+    `<div><b style="color:${t.color}">${t.id}</b>${noteName(cfg.freqs[k]).name}<br>${Math.round(cfg.freqs[k])} Hz</div>`).join("");
+  el.stepMic.classList.toggle("done", A.on);
+  el.stepCal.classList.toggle("done", !!cfg.calibrated);
+  el.btnMic.textContent = A.on ? "Läuft" : "Starten";
+  el.micStatus.textContent = A.on ? "Hört zu. Schlag eine Zunge an, der Balken sollte ausschlagen." : "Damit die App hört, was du spielst.";
+}
+
+function bindSlider(input, out, key, fmt, onChange) {
+  input.value = cfg[key];
+  const upd = () => { cfg[key] = Number(input.value); out.textContent = fmt(cfg[key]); saveCfg(); onChange && onChange(); };
+  input.addEventListener("input", upd);
+  out.textContent = fmt(cfg[key]);
+}
+bindSlider(el.sTempo, el.oTempo, "tempo", v => v + " %");
+bindSlider(el.sApproach, el.oApproach, "approach", v => v.toFixed(1) + " s");
+bindSlider(el.sSens, el.oSens, "sens", v => v + " / 10");
+bindSlider(el.sLat, el.oLat, "latency", v => v + " ms");
+el.cGuide.checked = cfg.guide;
+el.cGuide.onchange = () => { cfg.guide = el.cGuide.checked; saveCfg(); };
+
+(function fillRoots() {
+  const opts = [];
+  for (let m = 60; m <= 84; m++) opts.push(`<option value="${m}">${NOTE_NAMES[m % 12]}${Math.floor(m / 12) - 1}-Dur (1 = ${Math.round(midiToFreq(m))} Hz)</option>`);
+  el.rootSel.innerHTML = `<option value="">${cfg.calibrated ? "eingemessen" : "Standard"}</option>` + opts.join("");
+  el.rootSel.onchange = () => {
+    if (!el.rootSel.value) return;
+    cfg.root = Number(el.rootSel.value);
+    cfg.freqs = TONGUES.map(t => midiToFreq(cfg.root + t.semi));
+    cfg.calibrated = false; saveCfg(); renderMenu();
+  };
+})();
+
+el.btnMic.onclick = async () => { if (await startMic()) renderMenu(); };
+el.btnPause.onclick = togglePause;
+el.btnQuit.onclick = () => { if (A.ctx && A.ctx.state === "suspended") A.ctx.resume(); releaseWake(); show("menu"); };
+el.rMenu.onclick = () => show("menu");
+el.rAgain.onclick = () => startSong(S.song);
+el.rLatFix.onclick = () => {
+  cfg.latency = clampLat(cfg.latency + S.suggestLat); el.sLat.value = cfg.latency; el.oLat.textContent = cfg.latency + " ms";
+  saveCfg(); el.rLatRow.hidden = true; toast(`Latenz-Ausgleich jetzt ${cfg.latency} ms`);
+};
+
+/* ---------- Eigenes Lied ---------- */
+function openCustom() {
+  el.customText.value = cfg.customText;
+  el.sCustomBpm.value = cfg.customBpm; el.oCustomBpm.textContent = cfg.customBpm;
+  el.custom.hidden = false;
+}
+el.sCustomBpm.oninput = () => el.oCustomBpm.textContent = el.sCustomBpm.value;
+el.customCancel.onclick = () => el.custom.hidden = true;
+el.customPlay.onclick = () => {
+  cfg.customText = el.customText.value; cfg.customBpm = Number(el.sCustomBpm.value); saveCfg();
+  el.custom.hidden = true;
+  startSong(SONGS.find(s => s.id === "custom"));
+};
+
+/* ---------- Kalibrierung ---------- */
+const CAL = { step: 0, freqs: [], wait: false };
+el.btnCal.onclick = async () => {
+  if (!(await startMic())) return;
+  Object.assign(CAL, { step: 0, freqs: [], wait: false });
+  S.mode = "calib"; show("calib"); renderCalib();
+};
+function renderCalib() {
+  const done = CAL.step >= 6;
+  el.calKey.textContent = done ? "✓" : TONGUES[CAL.step].id;
+  el.calKey.style.color = done ? "#3dffa8" : TONGUES[CAL.step].color;
+  el.calText.textContent = done ? "Alle sechs Zungen sind eingemessen." : `Schlag die Zunge ${TONGUES[CAL.step].id} an und lass sie ausklingen.`;
+  el.calFreqs.innerHTML = TONGUES.map((t, k) => `<div><b style="color:${t.color}">${t.id}</b>${CAL.freqs[k] ? Math.round(CAL.freqs[k]) + " Hz" : "–"}</div>`).join("");
+  el.calSave.hidden = !done;
+  if (!done && !CAL.wait) el.calMsg.textContent = "Warte auf den Ton …";
+  S.flash.fill(0); if (!done) S.flash[CAL.step] = 1;
+}
+function calibStrike(freq) {
+  if (CAL.wait || CAL.step >= 6) return;
+  const nn = noteName(freq);
+  const prev = CAL.freqs[CAL.step - 1];
+  if (prev && freq < prev * 1.04) {
+    // tiefer als die vorige Zunge: vermutlich falsche Zunge oder Oktavfehler
+    if (freq * 2 > prev * 1.04 && freq * 2 < prev * 1.7) freq *= 2;
+    else { el.calMsg.textContent = `${nn.name} (${Math.round(freq)} Hz) ist nicht höher als Zunge ${TONGUES[CAL.step - 1].id}. Nochmal?`; return; }
+  }
+  CAL.freqs[CAL.step] = freq;
+  el.calMsg.textContent = `Gehört: ${noteName(freq).name}, ${freq.toFixed(1)} Hz`;
+  burst(targetPos(CAL.step).x, targetPos(CAL.step).y, TONGUES[CAL.step].color, 18);
+  CAL.wait = true;
+  setTimeout(() => { CAL.wait = false; CAL.step++; renderCalib(); }, 700);
+}
+el.calBack.onclick = () => { if (CAL.step > 0) { CAL.step--; CAL.freqs.length = CAL.step; CAL.wait = false; renderCalib(); } };
+el.calCancel.onclick = () => show("menu");
+el.calSave.onclick = () => {
+  cfg.freqs = CAL.freqs.slice(); cfg.calibrated = true; saveCfg();
+  el.rootSel.options[0].textContent = "eingemessen"; el.rootSel.value = "";
+  toast("Deine Trommel ist eingemessen."); show("menu");
+};
+
+/* ---------- Freies Spiel ---------- */
+el.btnFree.onclick = async () => { await startMic(); S.mode = "free"; show("free"); requestWake(); };
+el.freeDone.onclick = () => { releaseWake(); show("menu"); };
+
+/* ---------- Aufbau ---------- */
+let rotBase = null;
+el.btnLayout.onclick = () => {
+  S.mode = "layout"; show("layout");
+  el.sSize.max = Math.round(Math.min(W, H) * 0.6);
+  el.sSize.value = cfg.r; el.oSize.textContent = cfg.r + " px";
+  el.sRot.value = 0; el.oRot.textContent = "0°"; rotBase = cfg.angles.slice();
+  setView(cfg.view);
+};
+el.sSize.oninput = () => { cfg.r = Number(el.sSize.value); el.oSize.textContent = cfg.r + " px"; saveCfg(); };
+el.sRot.oninput = () => {
+  const d = Number(el.sRot.value); el.oRot.textContent = d + "°";
+  cfg.angles = rotBase.map(a => a + d); saveCfg();
+};
+function setView(v) {
+  cfg.view = v; saveCfg();
+  el.vRing.setAttribute("aria-pressed", v === "ring"); el.vLane.setAttribute("aria-pressed", v === "lane");
+}
+el.vRing.onclick = () => setView("ring");
+el.vLane.onclick = () => setView("lane");
+el.layReset.onclick = () => {
+  Object.assign(cfg, { angles: DEFAULT_ANGLES.slice(), cx: 0.5, cy: 0.5, r: Math.round(Math.min(W, H) * 0.3) });
+  rotBase = cfg.angles.slice(); el.sRot.value = 0; el.oRot.textContent = "0°";
+  el.sSize.value = cfg.r; el.oSize.textContent = cfg.r + " px"; saveCfg();
+};
+el.layDone.onclick = () => { el.layoutBar.classList.remove("folded"); el.layFold.textContent = "Einklappen"; show("menu"); };
+el.layFold.onclick = () => {
+  const f = el.layoutBar.classList.toggle("folded");
+  el.layFold.textContent = f ? "Ausklappen" : "Einklappen";
+};
+
+let drag = null;
+cv.addEventListener("pointerdown", e => {
+  const x = e.clientX, y = e.clientY;
+  if (S.mode === "layout") {
+    const { cx, cy, r, tr } = geom();
+    const hx = cx + Math.cos(rad(-45)) * r, hy = cy + Math.sin(rad(-45)) * r;
+    let k = -1;
+    TONGUES.forEach((_, i) => { const a = rad(cfg.angles[i]); if (Math.hypot(x - (cx + Math.cos(a) * tr), y - (cy + Math.sin(a) * tr)) < 30) k = i; });
+    if (Math.hypot(x - hx, y - hy) < 28) drag = { type: "size" };
+    else if (k >= 0) drag = { type: "tongue", k };
+    else if (Math.hypot(x - cx, y - cy) < r) drag = { type: "move", ox: x - cx, oy: y - cy };
+    if (drag) cv.setPointerCapture(e.pointerId);
+    return;
+  }
+  // Klick auf ein Ziel löst einen Testschlag aus (praktisch ohne Mikrofon)
+  if (S.mode === "play" || S.mode === "free" || S.mode === "calib") {
+    for (let k = 0; k < 6; k++) {
+      const p = targetPos(k);
+      if (Math.hypot(x - p.x, y - p.y) < 30) { simulate(k); break; }
+    }
+  }
+});
+cv.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const x = e.clientX, y = e.clientY, { cx, cy } = geom();
+  if (drag.type === "move") {
+    cfg.cx = Math.max(0, Math.min(1, (x - drag.ox) / W)); cfg.cy = Math.max(0, Math.min(1, (y - drag.oy) / H));
+  } else if (drag.type === "size") {
+    cfg.r = Math.max(60, Math.round(Math.hypot(x - cx, y - cy)));
+    el.sSize.value = cfg.r; el.oSize.textContent = cfg.r + " px";
+  } else if (drag.type === "tongue") {
+    cfg.angles[drag.k] = Math.round(Math.atan2(y - cy, x - cx) * 180 / Math.PI);
+    rotBase = cfg.angles.map(a => a - Number(el.sRot.value));
+  }
+});
+const endDrag = () => { if (drag) { drag = null; saveCfg(); } };
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+function simulate(k) {
+  const f = cfg.freqs[k] * Math.pow(2, (Math.random() - 0.5) * 8 / 1200);
+  pling(cfg.freqs[k], undefined, 0.35);
+  strike(f, now(), true);
+}
+const KEYMAP = { "1": 0, "2": 1, "3": 2, "5": 3, "6": 4, "8": 5, "i": 5, "I": 5 };
+addEventListener("keydown", e => {
+  if (e.target.matches("textarea, input, select")) return;
+  if (e.key in KEYMAP && !e.repeat) { ensureCtx(); simulate(KEYMAP[e.key]); }
+  if (e.key === "Escape" || e.key === " ") { if (S.mode === "play") { e.preventDefault(); togglePause(); } }
+});
+
+/* ---------- Bildschirm wach halten ---------- */
+let wake = null;
+async function requestWake() { try { wake = await navigator.wakeLock?.request("screen"); } catch {} }
+function releaseWake() { try { wake?.release(); } catch {} wake = null; }
+
+show("menu");
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
